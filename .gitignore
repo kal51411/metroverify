@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Databases & Uploads
+*.db
+*.sqlite
+uploads/
+/tmp/
+
+# Builds
+dist/
+dist-ssr/
+*.local
+
+# Environment
+.env
+.env.local
+.DS_Store
+*.log
+.vercel
