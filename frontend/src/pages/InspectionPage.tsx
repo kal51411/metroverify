@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Layout } from '../components/layout/Layout'
 import { LoadingPage, ErrorState } from '../components/ui/States'
 import { getApplication, startInspection, completeInspection, generateCertificate } from '../api'
@@ -15,7 +15,10 @@ import {
   ArrowLeft,
   Sliders,
   ShieldAlert,
-  Info
+  Info,
+  MapPin,
+  Stamp,
+  Smartphone
 } from 'lucide-react'
 
 interface TestRow {
@@ -27,15 +30,24 @@ interface TestRow {
 export default function InspectionPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const [app, setApp] = useState<Application | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [issuedCertLoading, setIssuedCertLoading] = useState(false)
 
+  // Determine role from URL path (officer or gatc)
+  const role = location.pathname.startsWith('/gatc') ? 'gatc' : 'officer'
+
   // Inspection state
   const [officerName, setOfficerName] = useState('Smt. Kavitha Nair (Legal Metrology Officer)')
   const [tolerance, setTolerance] = useState<number>(0.50) // +/- 0.50%
+
+  // Field Evidence state (new)
+  const [stampingSealNo, setStampingSealNo] = useState('')
+  const [gpsLocation, setGpsLocation] = useState('18.5204° N, 73.8567° E (Pune Central)')
+  const [isFieldInspection, setIsFieldInspection] = useState(false)
 
   // Default test measurement rows
   const [rows, setRows] = useState<TestRow[]>([
@@ -132,6 +144,9 @@ export default function InspectionPage() {
           standard_value: Number(r.standard),
           observed_value: Number(r.observed),
         })),
+        stamping_seal_no: stampingSealNo || undefined,
+        gps_location: isFieldInspection ? gpsLocation : undefined,
+        is_field_inspection: isFieldInspection,
       }
 
       const res = await completeInspection(app.id, payload)
@@ -164,17 +179,17 @@ export default function InspectionPage() {
     }
   }
 
-  if (loading) return <Layout role="officer"><LoadingPage /></Layout>
-  if (error || !app) return <Layout role="officer"><ErrorState message={error || 'Inspection data missing'} /></Layout>
+  if (loading) return <Layout role={role}><LoadingPage /></Layout>
+  if (error || !app) return <Layout role={role}><ErrorState message={error || 'Inspection data missing'} /></Layout>
 
   return (
     <Layout
-      role="officer"
+      role={role}
       title={`Digital Inspection Report: ${app.instrument?.type}`}
       subtitle={`Application: ${app.application_id} · Unit: ${app.instrument?.unit}`}
       actions={
         <button
-          onClick={() => navigate(`/officer/applications/${app.id}`)}
+          onClick={() => navigate(role === 'gatc' ? '/gatc' : `/officer/applications/${app.id}`)}
           className="btn-secondary text-xs"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
@@ -248,6 +263,61 @@ export default function InspectionPage() {
                 className="input py-1 text-xs w-60"
               />
             </div>
+          </div>
+        </div>
+      </div>
+      {/* Field Evidence & Stamping Card */}
+      <div className="card p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Stamp className="w-5 h-5 text-violet-600" />
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800">Field Evidence & Stamping Particulars</h3>
+            <p className="text-xs text-slate-400">Mandatory per Legal Metrology (General) Rules, 2011 — Rule 27</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFieldInspection(!isFieldInspection)}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                isFieldInspection
+                  ? 'bg-violet-100 text-violet-700 border-violet-300'
+                  : 'bg-slate-100 text-slate-500 border-slate-200'
+              }`}
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              {isFieldInspection ? 'Field Inspection ON' : 'Field Inspection OFF'}
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="label">Stamping Seal Number</label>
+            <div className="relative">
+              <Stamp className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={stampingSealNo}
+                onChange={(e) => setStampingSealNo(e.target.value)}
+                placeholder="e.g. MH-SEAL-2026-PNE-001 (auto-generated if blank)"
+                className="input pl-9 text-sm font-mono"
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Lead seal stamped on the instrument post-verification. Auto-assigned by system if left blank.</p>
+          </div>
+          <div>
+            <label className="label">GPS Geotag Location {!isFieldInspection && <span className="text-slate-400 font-normal">(enable Field Inspection to record)</span>}</label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                type="text"
+                value={gpsLocation}
+                onChange={(e) => setGpsLocation(e.target.value)}
+                disabled={!isFieldInspection}
+                placeholder="18.5204° N, 73.8567° E"
+                className="input pl-9 text-sm font-mono disabled:opacity-40 disabled:cursor-not-allowed"
+              />
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Latitude/longitude recorded at the inspection site for audit trail purposes.</p>
           </div>
         </div>
       </div>

@@ -14,7 +14,10 @@ import {
   Building,
   Calendar,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  Stamp,
+  Microscope,
+  UserCheck
 } from 'lucide-react'
 
 export default function PublicVerify() {
@@ -271,9 +274,38 @@ export default function PublicVerify() {
                 </div>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
-                <span>Inspecting Officer: {data.officer}</span>
-                <span>Lab: {data.test_centre}</span>
+              <div className="mt-4 pt-3 border-t border-white/5 space-y-3">
+                <div className="flex items-center justify-between text-[11px] text-white/40">
+                  <span>Inspecting Officer: {data.officer}</span>
+                  <span>Lab: {data.test_centre}</span>
+                </div>
+                {/* Stamping Seal & Authority Row */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {data.stamping_seal_no && (
+                    <div className="flex items-center gap-1.5 bg-amber-950/60 border border-amber-700/40 px-3 py-1.5 rounded-lg">
+                      <Stamp className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-mono font-bold text-amber-300">Seal: {data.stamping_seal_no}</span>
+                    </div>
+                  )}
+                  {data.allocated_to_type && (
+                    data.allocated_to_type === 'GATC' ? (
+                      <div className="flex items-center gap-1.5 bg-violet-950/60 border border-violet-600/40 px-3 py-1.5 rounded-lg">
+                        <Microscope className="w-3.5 h-3.5 text-violet-400" />
+                        <span className="text-xs font-bold text-violet-300">GATC — Govt. Approved Test Centre</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 bg-brand-950/60 border border-brand-600/40 px-3 py-1.5 rounded-lg">
+                        <UserCheck className="w-3.5 h-3.5 text-brand-400" />
+                        <span className="text-xs font-bold text-brand-300">LMO — Legal Metrology Officer</span>
+                      </div>
+                    )
+                  )}
+                  {data.district && (
+                    <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+                      <span className="text-xs text-white/50">District: <span className="text-white/80 font-medium">{data.district}</span></span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

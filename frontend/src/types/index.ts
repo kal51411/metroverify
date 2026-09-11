@@ -1,4 +1,4 @@
-export type UserRole = 'business' | 'officer' | 'public'
+export type UserRole = 'business' | 'officer' | 'gatc' | 'admin' | 'public'
 
 export type ApplicationStatus =
   | 'DRAFT'
@@ -14,6 +14,8 @@ export type ApplicationStatus =
 
 export type Priority = 'LOW' | 'NORMAL' | 'HIGH'
 export type InspectionResult = 'PASS' | 'FAIL'
+export type AllocationType = 'LMO' | 'GATC'
+export type VerificationType = 'VERIFICATION' | 'RE_VERIFICATION'
 
 export interface Instrument {
   id: number
@@ -27,6 +29,8 @@ export interface Instrument {
   owner_name: string
   business_name: string
   address: string
+  district?: string
+  last_verified_at?: string
   created_at: string
 }
 
@@ -34,12 +38,16 @@ export interface Application {
   id: number
   application_id: string
   instrument_id: number
+  application_type?: VerificationType
   status: ApplicationStatus
   submitted_at: string
   inspection_date?: string
   inspection_time?: string
   test_centre?: string
   assigned_officer?: string
+  allocated_to_type?: AllocationType
+  gatc_name?: string
+  district?: string
   priority: Priority
   notes?: string
   document_path?: string
@@ -66,6 +74,11 @@ export interface Inspection {
   tolerance: number
   result?: InspectionResult
   max_error_percentage?: number
+  stamping_seal_no?: string
+  gps_location?: string
+  instrument_photo?: string
+  seal_photo?: string
+  is_field_inspection?: boolean
   created_at: string
   completed_at?: string
   results: InspectionResultRow[]
@@ -82,6 +95,10 @@ export interface Certificate {
   qr_token: string
   officer: string
   test_centre: string
+  allocated_to_type?: AllocationType
+  verification_type?: VerificationType
+  stamping_seal_no?: string
+  district?: string
   created_at: string
   instrument?: Instrument
 }
@@ -100,6 +117,10 @@ export interface VerifyResponse {
   result: string
   officer: string
   test_centre: string
+  allocated_to_type?: AllocationType
+  verification_type?: VerificationType
+  stamping_seal_no?: string
+  district?: string
   is_valid: boolean
   is_expired: boolean
   status_label: string
@@ -120,4 +141,22 @@ export interface OfficerStats {
   verified: number
   failed: number
   expiring_soon: number
+  gatc_assigned?: number
+}
+
+export interface AdminEnforcementStats {
+  total_instruments_statewide: number
+  total_applications: number
+  compliance_rate_percent: number
+  total_stamped_active: number
+  overdue_reverifications: number
+  gatc_centers_active: number
+  lmo_officers_active: number
+  district_breakdown: {
+    district: string
+    total_applications: number
+    verified: number
+    pending: number
+    compliance_rate: string
+  }[]
 }

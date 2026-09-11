@@ -77,6 +77,10 @@ def complete_inspection(
     result = "PASS" if all_pass else "FAIL"
     inspection_id = f"LM-INS-{datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
 
+    seal_no = body.stamping_seal_no
+    if not seal_no and result == "PASS":
+        seal_no = f"MH-26-SEAL-{uuid.uuid4().hex[:6].upper()}"
+
     inspection = Inspection(
         inspection_id=inspection_id,
         application_id=application_id,
@@ -84,6 +88,11 @@ def complete_inspection(
         tolerance=body.tolerance,
         result=result,
         max_error_percentage=round(max_error_pct, 4),
+        stamping_seal_no=seal_no,
+        gps_location=body.gps_location or "18.5204° N, 73.8567° E (Pune Central)",
+        instrument_photo=body.instrument_photo,
+        seal_photo=body.seal_photo,
+        is_field_inspection=body.is_field_inspection if body.is_field_inspection is not None else True,
         completed_at=datetime.utcnow(),
     )
     db.add(inspection)
@@ -100,14 +109,18 @@ def complete_inspection(
         )
         db.add(ir)
 
-    # Update application status
+    # Update application status and instrument last verified date
     app.status = "VERIFIED" if result == "PASS" else "FAILED"
+    if result == "PASS" and app.instrument:
+        app.instrument.last_verified_at = datetime.utcnow()
+
     db.commit()
 
     return {
         "inspection_id": inspection.id,
         "inspection_ref": inspection_id,
         "result": result,
+        "stamping_seal_no": seal_no,
         "max_error_percentage": round(max_error_pct, 4),
         "results": calc_results,
         "application_status": app.status,

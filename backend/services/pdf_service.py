@@ -175,10 +175,13 @@ def generate_certificate_pdf(cert_data: dict) -> bytes:
     story.append(Spacer(1, 0.3 * cm))
 
     # Verification Details
-    story.append(Paragraph("VERIFICATION DETAILS", section_style))
+    story.append(Paragraph("STATUTORY VERIFICATION & STAMPING PARTICULARS", section_style))
+    auth_label = "Govt Approved Test Centre (GATC)" if cert_data.get("allocated_to_type") == "GATC" else "State Legal Metrology Officer (LMO)"
     verify_data = [
         ["Verification Date", cert_data.get("verification_date", ""), "Valid Until", cert_data.get("valid_until", "")],
-        ["Inspecting Officer", cert_data.get("officer", ""), "Test Centre", cert_data.get("test_centre", "")],
+        ["Inspecting Officer / Lab", cert_data.get("officer", ""), "Test Centre", cert_data.get("test_centre", "")],
+        ["Stamping Seal No.", cert_data.get("stamping_seal_no", "MH-26-SEAL-PENDING"), "Authority Type", auth_label],
+        ["Verification Scope", cert_data.get("verification_type", "VERIFICATION"), "Jurisdiction / District", cert_data.get("district", "Maharashtra State")],
     ]
     verify_table = Table(verify_data, colWidths=[3.5 * cm, 6 * cm, 3.5 * cm, 6 * cm])
     verify_table.setStyle(TableStyle([
@@ -186,16 +189,16 @@ def generate_certificate_pdf(cert_data: dict) -> bytes:
         ("BACKGROUND", (2, 0), (2, -1), LIGHT_GRAY),
         ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
         ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("FONTSIZE", (0, 0), (-1, -1), 8.5),
         ("TEXTCOLOR", (0, 0), (0, -1), TEXT_GRAY),
         ("TEXTCOLOR", (2, 0), (2, -1), TEXT_GRAY),
         ("TEXTCOLOR", (1, 0), (1, -1), NAVY),
         ("TEXTCOLOR", (3, 0), (3, -1), NAVY),
         ("GRID", (0, 0), (-1, -1), 0.5, MID_GRAY),
-        ("PADDING", (0, 0), (-1, -1), 6),
+        ("PADDING", (0, 0), (-1, -1), 5),
     ]))
     story.append(verify_table)
-    story.append(Spacer(1, 0.5 * cm))
+    story.append(Spacer(1, 0.4 * cm))
 
     # Footer
     story.append(HRFlowable(width="100%", thickness=1, color=MID_GRAY))

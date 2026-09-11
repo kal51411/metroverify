@@ -15,7 +15,10 @@ import {
   Scale,
   Building2,
   Calendar,
-  UserCheck
+  UserCheck,
+  Stamp,
+  MapPin,
+  Microscope
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -219,6 +222,56 @@ export default function CertificatePage() {
                 <span className="text-xs text-slate-400 block">Standard Permissible Tolerance</span>
                 <span className="font-medium text-slate-800">Within ±0.50% Maximum Error</span>
               </div>
+            </div>
+          </div>
+
+          {/* Statutory Stamping Particulars */}
+          <div>
+            <h3 className="text-xs font-bold text-navy-900 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Stamp className="w-4 h-4 text-amber-600" />
+              4. Statutory Verification &amp; Stamping Particulars
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+              <div>
+                <span className="text-xs text-slate-400 block">Lead Seal Number</span>
+                <span className="font-mono font-bold text-amber-800 text-sm">
+                  {app.certificate?.stamping_seal_no || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block">Verification Authority</span>
+                {app.certificate?.allocated_to_type === 'GATC' ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full border border-violet-200">
+                    <Microscope className="w-3 h-3" />
+                    GATC — Govt. Approved Test Centre
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                    <UserCheck className="w-3 h-3" />
+                    LMO — Legal Metrology Officer
+                  </span>
+                )}
+              </div>
+              <div>
+                <span className="text-xs text-slate-400 block">District / Jurisdiction</span>
+                <span className="font-semibold text-slate-800">
+                  {app.certificate?.district || app.instrument?.address?.split(',').pop()?.trim() || 'Maharashtra'}
+                </span>
+              </div>
+              {app.certificate?.verification_type && (
+                <div>
+                  <span className="text-xs text-slate-400 block">Verification Type</span>
+                  <span className={`text-xs font-bold ${
+                    app.certificate.verification_type === 'RE_VERIFICATION'
+                      ? 'text-orange-700'
+                      : 'text-emerald-700'
+                  }`}>
+                    {app.certificate.verification_type === 'RE_VERIFICATION'
+                      ? 'Re-Verification (Rule 27)'
+                      : 'Initial Verification'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

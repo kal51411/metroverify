@@ -18,6 +18,8 @@ class Instrument(Base):
     owner_name = Column(String)
     business_name = Column(String)
     address = Column(Text)
+    district = Column(String, default="Pune")
+    last_verified_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     applications = relationship("Application", back_populates="instrument")
@@ -29,12 +31,16 @@ class Application(Base):
     id = Column(Integer, primary_key=True, index=True)
     application_id = Column(String, unique=True, index=True)
     instrument_id = Column(Integer, ForeignKey("instruments.id"))
+    application_type = Column(String, default="VERIFICATION")  # VERIFICATION, RE_VERIFICATION
     status = Column(String, default="SUBMITTED")  # DRAFT, SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, SCHEDULED, UNDER_INSPECTION, VERIFIED, FAILED, EXPIRED
     submitted_at = Column(DateTime, default=datetime.utcnow)
     inspection_date = Column(String, nullable=True)
     inspection_time = Column(String, nullable=True)
     test_centre = Column(String, nullable=True)
     assigned_officer = Column(String, nullable=True)
+    allocated_to_type = Column(String, default="LMO")  # LMO, GATC
+    gatc_name = Column(String, nullable=True)
+    district = Column(String, default="Pune")
     priority = Column(String, default="NORMAL")  # LOW, NORMAL, HIGH
     notes = Column(Text, nullable=True)
     document_path = Column(String, nullable=True)
@@ -56,6 +62,11 @@ class Inspection(Base):
     tolerance = Column(Float, default=0.5)
     result = Column(String, nullable=True)  # PASS, FAIL
     max_error_percentage = Column(Float, nullable=True)
+    stamping_seal_no = Column(String, nullable=True)
+    gps_location = Column(String, nullable=True)
+    instrument_photo = Column(String, nullable=True)
+    seal_photo = Column(String, nullable=True)
+    is_field_inspection = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
 
@@ -90,6 +101,10 @@ class Certificate(Base):
     qr_token = Column(String, unique=True)
     officer = Column(String)
     test_centre = Column(String)
+    allocated_to_type = Column(String, default="LMO")  # LMO, GATC
+    verification_type = Column(String, default="VERIFICATION")
+    stamping_seal_no = Column(String, nullable=True)
+    district = Column(String, default="Pune")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     instrument = relationship("Instrument")

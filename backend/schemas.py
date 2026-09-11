@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 
 
@@ -15,6 +15,7 @@ class InstrumentCreate(BaseModel):
     owner_name: str
     business_name: str
     address: str
+    district: Optional[str] = "Pune"
 
 
 class InstrumentOut(BaseModel):
@@ -29,6 +30,8 @@ class InstrumentOut(BaseModel):
     owner_name: str
     business_name: str
     address: str
+    district: Optional[str] = "Pune"
+    last_verified_at: Optional[datetime] = None
     created_at: datetime
 
     class Config:
@@ -39,29 +42,9 @@ class InstrumentOut(BaseModel):
 
 class ApplicationCreate(BaseModel):
     instrument_id: int
+    application_type: Optional[str] = "VERIFICATION"  # VERIFICATION, RE_VERIFICATION
     notes: Optional[str] = None
-
-
-class ApplicationOut(BaseModel):
-    id: int
-    application_id: str
-    instrument_id: int
-    status: str
-    submitted_at: datetime
-    inspection_date: Optional[str] = None
-    inspection_time: Optional[str] = None
-    test_centre: Optional[str] = None
-    assigned_officer: Optional[str] = None
-    priority: str
-    notes: Optional[str] = None
-    document_path: Optional[str] = None
-    reviewed_at: Optional[datetime] = None
-    scheduled_at: Optional[datetime] = None
-    instrument: Optional[InstrumentOut] = None
-    certificate: Optional['CertificateOut'] = None
-
-    class Config:
-        from_attributes = True
+    district: Optional[str] = "Pune"
 
 
 class ScheduleRequest(BaseModel):
@@ -69,6 +52,8 @@ class ScheduleRequest(BaseModel):
     inspection_time: str
     test_centre: str
     officer: str
+    allocated_to_type: Optional[str] = "LMO"  # LMO or GATC
+    gatc_name: Optional[str] = None
 
 
 class RejectRequest(BaseModel):
@@ -97,6 +82,11 @@ class InspectionResultOut(BaseModel):
 class InspectionCreate(BaseModel):
     officer: str
     tolerance: float = 0.5
+    stamping_seal_no: Optional[str] = None
+    gps_location: Optional[str] = None
+    instrument_photo: Optional[str] = None
+    seal_photo: Optional[str] = None
+    is_field_inspection: Optional[bool] = True
     results: List[InspectionResultCreate]
 
 
@@ -108,6 +98,11 @@ class InspectionOut(BaseModel):
     tolerance: float
     result: Optional[str] = None
     max_error_percentage: Optional[float] = None
+    stamping_seal_no: Optional[str] = None
+    gps_location: Optional[str] = None
+    instrument_photo: Optional[str] = None
+    seal_photo: Optional[str] = None
+    is_field_inspection: Optional[bool] = True
     created_at: datetime
     completed_at: Optional[datetime] = None
     results: List[InspectionResultOut] = []
@@ -129,8 +124,38 @@ class CertificateOut(BaseModel):
     qr_token: str
     officer: str
     test_centre: str
+    allocated_to_type: Optional[str] = "LMO"
+    verification_type: Optional[str] = "VERIFICATION"
+    stamping_seal_no: Optional[str] = None
+    district: Optional[str] = "Pune"
     created_at: datetime
     instrument: Optional[InstrumentOut] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ApplicationOut(BaseModel):
+    id: int
+    application_id: str
+    instrument_id: int
+    application_type: Optional[str] = "VERIFICATION"
+    status: str
+    submitted_at: datetime
+    inspection_date: Optional[str] = None
+    inspection_time: Optional[str] = None
+    test_centre: Optional[str] = None
+    assigned_officer: Optional[str] = None
+    allocated_to_type: Optional[str] = "LMO"
+    gatc_name: Optional[str] = None
+    district: Optional[str] = "Pune"
+    priority: str
+    notes: Optional[str] = None
+    document_path: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    scheduled_at: Optional[datetime] = None
+    instrument: Optional[InstrumentOut] = None
+    certificate: Optional[CertificateOut] = None
 
     class Config:
         from_attributes = True
@@ -152,6 +177,10 @@ class VerifyResponse(BaseModel):
     result: str
     officer: str
     test_centre: str
+    allocated_to_type: Optional[str] = "LMO"
+    verification_type: Optional[str] = "VERIFICATION"
+    stamping_seal_no: Optional[str] = None
+    district: Optional[str] = "Pune"
     is_valid: bool
     is_expired: bool
     status_label: str
@@ -174,6 +203,18 @@ class OfficerStats(BaseModel):
     verified: int
     failed: int
     expiring_soon: int
+    gatc_assigned: int = 0
+
+
+class AdminEnforcementStats(BaseModel):
+    total_instruments_statewide: int
+    total_applications: int
+    compliance_rate_percent: float
+    total_stamped_active: int
+    overdue_reverifications: int
+    gatc_centers_active: int
+    lmo_officers_active: int
+    district_breakdown: List[Dict[str, str | int]]
 
 
 ApplicationOut.model_rebuild()

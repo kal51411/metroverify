@@ -9,6 +9,10 @@ import ApplicationReview from './pages/ApplicationReview'
 import InspectionPage from './pages/InspectionPage'
 import CertificatePage from './pages/CertificatePage'
 import PublicVerify from './pages/PublicVerify'
+import AdminDashboard from './pages/AdminDashboard'
+import GATCDashboard from './pages/GATCDashboard'
+import Repository from './pages/Repository'
+import ArchitectureView from './pages/ArchitectureView'
 
 export default function App() {
   return (
@@ -41,6 +45,19 @@ export default function App() {
         <Route path="/officer/inspection/:id" element={<InspectionPage />} />
         <Route path="/officer/scheduled" element={<OfficerDashboard />} />
         <Route path="/officer/verified" element={<OfficerDashboard />} />
+
+        {/* GATC Test Centre Routes */}
+        <Route path="/gatc" element={<GATCDashboard />} />
+        <Route path="/gatc/inspection/:id" element={<InspectionPage />} />
+
+        {/* State Controller Admin Routes */}
+        <Route path="/admin" element={<AdminDashboard />} />
+
+        {/* Central Repository */}
+        <Route path="/repository" element={<Repository />} />
+
+        {/* Architecture / Technical Docs */}
+        <Route path="/architecture" element={<ArchitectureView />} />
 
         {/* Certificate View */}
         <Route path="/certificate/:id" element={<CertificatePage />} />

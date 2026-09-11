@@ -32,12 +32,14 @@ export default function ApplicationReview() {
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
-  // Scheduling Form
+  // Scheduling Form with GATC vs LMO options
   const [scheduleData, setScheduleData] = useState({
     inspection_date: new Date().toISOString().split('T')[0],
     inspection_time: '11:00 AM',
     test_centre: 'State Legal Metrology Lab, Shivaji Nagar, Pune',
     officer: 'Smt. Kavitha Nair (Inspector Grade-I)',
+    allocated_to_type: 'LMO',
+    gatc_name: '',
   })
 
   // Optional AI assistant extraction demo
@@ -339,13 +341,57 @@ export default function ApplicationReview() {
             <div className="card p-6 border-violet-200 bg-violet-50/20">
               <h3 className="font-semibold text-slate-900 text-base mb-1 flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-violet-600" />
-                Schedule Physical Inspection
+                Schedule &amp; Allocate Verification
               </h3>
-              <p className="text-xs text-slate-500 mb-5">
-                Assign test laboratory date, time slot, and inspecting officer.
+              <p className="text-xs text-slate-500 mb-4">
+                Allocate verification to a State Metrology Officer (LMO) or Govt Approved Test Centre (GATC) under Sec. 24.
               </p>
 
               <form onSubmit={handleScheduleSubmit} className="space-y-4">
+                {/* Allocation Type Switcher */}
+                <div className="bg-white p-3 rounded-xl border border-violet-200">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-2">
+                    Testing Authority Allocation
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setScheduleData({
+                        ...scheduleData,
+                        allocated_to_type: 'LMO',
+                        test_centre: 'State Legal Metrology Lab, Shivaji Nagar, Pune',
+                        officer: 'Smt. Kavitha Nair (Inspector Grade-I)',
+                        gatc_name: '',
+                      })}
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all text-center ${
+                        scheduleData.allocated_to_type === 'LMO'
+                          ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      State LMO Officer
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setScheduleData({
+                        ...scheduleData,
+                        allocated_to_type: 'GATC',
+                        test_centre: 'National Test House (GATC Centre #04), Mumbai',
+                        officer: 'Er. D. S. Mehta (Chief Metrologist)',
+                        gatc_name: 'National Test House (GATC #04)',
+                      })}
+                      className={`py-2 px-3 rounded-lg text-xs font-semibold border transition-all text-center ${
+                        scheduleData.allocated_to_type === 'GATC'
+                          ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      GATC Test Centre
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <label className="label text-xs">Inspection Date</label>
                   <input
@@ -358,7 +404,7 @@ export default function ApplicationReview() {
                 </div>
 
                 <div>
-                  <label className="label text-xs">Inspection Slot</label>
+                  <label className="label text-xs">Inspection Time Slot</label>
                   <input
                     type="text"
                     required
@@ -370,7 +416,9 @@ export default function ApplicationReview() {
                 </div>
 
                 <div>
-                  <label className="label text-xs">Designated Test Centre</label>
+                  <label className="label text-xs">
+                    {scheduleData.allocated_to_type === 'GATC' ? 'Notified GATC Facility' : 'Designated State Test Centre'}
+                  </label>
                   <input
                     type="text"
                     required
@@ -381,7 +429,9 @@ export default function ApplicationReview() {
                 </div>
 
                 <div>
-                  <label className="label text-xs">Assigned Metrology Officer</label>
+                  <label className="label text-xs">
+                    {scheduleData.allocated_to_type === 'GATC' ? 'GATC Certified Metrologist' : 'Assigned Metrology Officer'}
+                  </label>
                   <input
                     type="text"
                     required
@@ -397,7 +447,7 @@ export default function ApplicationReview() {
                   className="w-full btn-primary py-2.5 justify-center bg-violet-600 hover:bg-violet-700 text-sm mt-2 shadow-sm"
                 >
                   <Calendar className="w-4 h-4 mr-1" />
-                  Confirm &amp; Schedule Inspection
+                  Confirm &amp; Allocate to {scheduleData.allocated_to_type === 'GATC' ? 'GATC Centre' : 'LMO Officer'}
                 </button>
               </form>
             </div>

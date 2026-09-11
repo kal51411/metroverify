@@ -54,6 +54,8 @@ def generate_certificate(application_id: int, db: Session = Depends(get_db)):
     verification_date = datetime.utcnow()
     valid_until = verification_date + timedelta(days=365)
 
+    seal_no = app.inspection.stamping_seal_no if app.inspection else None
+
     cert = Certificate(
         certificate_id=certificate_id,
         instrument_id=app.instrument_id,
@@ -64,6 +66,10 @@ def generate_certificate(application_id: int, db: Session = Depends(get_db)):
         qr_token=qr_token,
         officer=app.assigned_officer or "Inspection Officer",
         test_centre=app.test_centre or "State Legal Metrology Lab",
+        allocated_to_type=app.allocated_to_type or "LMO",
+        verification_type=app.application_type or "VERIFICATION",
+        stamping_seal_no=seal_no or f"MH-26-SEAL-{uuid.uuid4().hex[:6].upper()}",
+        district=app.district or "Pune",
     )
     db.add(cert)
     db.commit()
@@ -113,6 +119,10 @@ def download_certificate_pdf(certificate_id: int, db: Session = Depends(get_db))
         "result": cert.result,
         "officer": cert.officer,
         "test_centre": cert.test_centre,
+        "allocated_to_type": cert.allocated_to_type or "LMO",
+        "verification_type": cert.verification_type or "VERIFICATION",
+        "stamping_seal_no": cert.stamping_seal_no or "MH-26-SEAL-PENDING",
+        "district": cert.district or "Pune",
     }
 
     pdf_bytes = generate_certificate_pdf(cert_data)
