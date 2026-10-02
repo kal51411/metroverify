@@ -2,88 +2,199 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  body {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background-color: #080c14;
-    color: #f8fafc;
-  }
-
-  h1, h2, h3, .font-display {
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    letter-spacing: -0.02em;
-  }
+/* ── ROOT VARIABLES ──────────────────────────────────────────── */
+:root {
+  --black: #0a0a0a;
+  --charcoal: #111111;
+  --onyx: #1a1a1a;
+  --iron: #2a2a2a;
+  --steel: #3d3d3d;
+  --ash: #666666;
+  --silver: #999999;
+  --fog: #cccccc;
+  --ivory: #f0ede8;
+  --warm: #f8f5f0;
+  --amber: #d97706;
+  --amber-light: #fbbf24;
+  --pass: #16a34a;
+  --fail: #dc2626;
 }
 
-/* Custom scrollbars for technical tables */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ── BASE ────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar-track {
-  background: #080c14;
+body {
+  background: var(--black);
+  color: var(--ivory);
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #1e293b;
-  border-radius: 3px;
+/* ── SCROLLBAR ───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--charcoal); }
+::-webkit-scrollbar-thumb { background: var(--steel); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+
+/* ── SELECTION ───────────────────────────────────────────────── */
+::selection { background: rgba(217, 119, 6, 0.3); color: var(--warm); }
+
+/* ── NOISE TEXTURE OVERLAY ───────────────────────────────────── */
+.noise-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  z-index: 1;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #334155;
-}
-
-/* Technical Hairline Grid Pattern */
-.bg-grid-pattern {
-  background-size: 32px 32px;
+/* ── HAIRLINE GRID ───────────────────────────────────────────── */
+.hairline-grid {
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 80px 80px;
 }
 
-.bg-dots-pattern {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px;
+/* ── ENGINEERING ANNOTATION LINES ───────────────────────────── */
+.annotation-line {
+  position: relative;
+}
+.annotation-line::after {
+  content: '';
+  position: absolute;
+  right: -2rem;
+  top: 50%;
+  width: 1.5rem;
+  height: 1px;
+  background: var(--amber);
+  opacity: 0.6;
 }
 
-/* Technical Calibration Ruler Generator */
-.ruler-ticks {
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(148, 163, 184, 0.3) 0,
-    rgba(148, 163, 184, 0.3) 1px,
-    transparent 1px,
-    transparent 10px
-  );
+/* ── SCALE SVG ANIMATION ─────────────────────────────────────── */
+@keyframes dialNeedle {
+  from { transform-origin: center; transform: rotate(-60deg); }
+  to   { transform-origin: center; transform: rotate(var(--dial-angle, 0deg)); }
 }
 
-.ruler-ticks-major {
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgba(59, 130, 246, 0.6) 0,
-    rgba(59, 130, 246, 0.6) 2px,
-    transparent 2px,
-    transparent 50px
-  );
+@keyframes platformSettle {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(8px); }
+  60%  { transform: translateY(4px); }
+  80%  { transform: translateY(6px); }
+  100% { transform: translateY(5px); }
 }
 
-/* Precision Scanner Line Animation */
-@keyframes scan-line {
-  0% { transform: translateY(0%); opacity: 0.2; }
-  50% { opacity: 0.8; }
-  100% { transform: translateY(100%); opacity: 0.2; }
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.animate-scan {
-  animation: scan-line 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+@keyframes toleranceReveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.4); opacity: 0.7; }
 }
 
-.animate-pulse-slow {
-  animation: pulse-slow 3s ease-in-out infinite;
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.needle-animate {
+  animation: dialNeedle 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.platform-settle {
+  animation: platformSettle 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.tolerance-reveal {
+  animation: toleranceReveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s forwards;
+  clip-path: inset(0 100% 0 0);
+}
+.dot-pulse {
+  animation: dotPulse 2s ease-in-out infinite;
+}
+
+/* ── NUMBER TICKER ───────────────────────────────────────────── */
+.number-reveal {
+  animation: countUp 0.4s ease forwards;
+}
+
+/* ── HERO GRADIENT TEXT ──────────────────────────────────────── */
+.gradient-text-amber {
+  background: linear-gradient(135deg, var(--ivory) 0%, var(--amber-light) 50%, var(--ivory) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s linear infinite;
+}
+
+/* ── SECTION TRANSITIONS ─────────────────────────────────────── */
+.section-fade-in {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.section-fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── AMBER GLOW BUTTON ───────────────────────────────────────── */
+.btn-amber {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-amber::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(217, 119, 6, 0.12);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+}
+.btn-amber:hover::before { transform: translateX(0); }
+.btn-amber:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(217, 119, 6, 0.2); }
+.btn-amber:active { transform: translateY(0); }
+
+/* ── PAGE TRANSITION ─────────────────────────────────────────── */
+.page-enter { opacity: 0; transform: translateY(16px); }
+.page-enter-active { opacity: 1; transform: translateY(0); transition: opacity 0.4s ease, transform 0.4s ease; }
+.page-exit { opacity: 1; }
+.page-exit-active { opacity: 0; transition: opacity 0.2s ease; }
+
+/* ── CERTIFICATE DOCUMENT ────────────────────────────────────── */
+.cert-paper {
+  background: #1a1814;
+  border: 1px solid #3a3530;
+  box-shadow: 0 0 0 4px #111111, 0 20px 60px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* ── PRINT STYLES ────────────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  .cert-paper { box-shadow: none; border: 1px solid #ccc; }
+  body { background: white; color: black; }
+}
+
+/* ── REDUCE MOTION ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

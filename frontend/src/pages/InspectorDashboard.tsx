@@ -1,324 +1,295 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api/client";
 import { useLanguage } from "../i18n/LanguageContext";
-import {
-  ShieldCheck, CheckCircle2, Clock, XCircle,
-  FileCheck2, Search, MapPin, Scale, ChevronRight, AlertTriangle
-} from "lucide-react";
+import { ChevronRight, AlertTriangle, MapPin } from "lucide-react";
 
 interface InspectorDashboardProps {
   onSelectInspection: (appId: number) => void;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  SUBMITTED: { label: "SUBMITTED", color: "text-blue-400" },
-  UNDER_SCRUTINY: { label: "SCRUTINY", color: "text-blue-300" },
-  SCHEDULED: { label: "SCHEDULED", color: "text-amber-400" },
-  IN_PROGRESS: { label: "IN PROGRESS", color: "text-amber-300" },
-  INSPECTION_PASSED: { label: "PASSED", color: "text-emerald-400" },
-  INSPECTION_FAILED: { label: "FAILED", color: "text-rose-400" },
-  CERTIFICATE_ISSUED: { label: "CERTIFIED", color: "text-emerald-500" },
-  REJECTED: { label: "REJECTED", color: "text-rose-500" },
-  PENDING_QUERY: { label: "QUERY", color: "text-amber-400" },
+const STATUS: Record<string, { label: string; color: string }> = {
+  SUBMITTED:         { label: "Submitted",   color: "text-fog" },
+  UNDER_SCRUTINY:    { label: "Scrutiny",    color: "text-fog" },
+  SCHEDULED:         { label: "Scheduled",   color: "text-amber-light" },
+  IN_PROGRESS:       { label: "In Progress", color: "text-amber" },
+  INSPECTION_PASSED: { label: "Passed",      color: "text-pass" },
+  INSPECTION_FAILED: { label: "Failed",      color: "text-fail" },
+  CERTIFICATE_ISSUED:{ label: "Certified",   color: "text-pass" },
+  REJECTED:          { label: "Rejected",    color: "text-fail" },
+  PENDING_QUERY:     { label: "Query",       color: "text-amber" },
 };
+
+const FILTERS = ["ALL", "SUBMITTED", "SCHEDULED", "IN_PROGRESS", "INSPECTION_PASSED", "CERTIFICATE_ISSUED"];
 
 export const InspectorDashboard: React.FC<InspectorDashboardProps> = ({ onSelectInspection }) => {
   const { t } = useLanguage();
-  const [applications, setApplications] = useState<any[]>([]);
+  const [apps, setApps] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFilter, setSelectedFilter] = useState("ALL");
+  const [filter, setFilter] = useState("ALL");
   const [rejectModal, setRejectModal] = useState<{ id: number; reason: string } | null>(null);
-  const [scheduleModal, setScheduleModal] = useState<any | null>(null);
+  const [schedModal, setSchedModal] = useState<any>(null);
   const [schedDate, setSchedDate] = useState("2026-10-05");
   const [schedTime, setSchedTime] = useState("10:30 AM");
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const apps = await api.getApplications();
-      setApplications(apps);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+      setApps(await api.getApplications());
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const handleApprove = async (appId: number) => {
-    try {
-      await api.approveApplication(appId);
-      await loadData();
-    } catch (err: any) {
-      alert("Error approving application: " + err.message);
-    }
-  };
-
-  const handleRejectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectModal || !rejectModal.reason.trim()) return;
-    try {
-      await api.rejectApplication(rejectModal.id, rejectModal.reason);
-      setRejectModal(null);
-      await loadData();
-    } catch (err: any) {
-      alert("Error rejecting: " + err.message);
-    }
-  };
-
-  const handleScheduleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!scheduleModal) return;
-    try {
-      await api.scheduleApplication(scheduleModal.id, {
-        scheduled_date: schedDate,
-        scheduled_time: schedTime,
-        test_centre_or_premises: scheduleModal.instrument?.address || "Trader Premises",
-        inspector_id: 2
-      });
-      setScheduleModal(null);
-      await loadData();
-    } catch (err: any) {
-      alert("Error scheduling: " + err.message);
-    }
-  };
-
-  const FILTER_TABS = [
-    { id: "ALL", label: "ALL" },
-    { id: "SUBMITTED", label: "SUBMITTED" },
-    { id: "SCHEDULED", label: "SCHEDULED" },
-    { id: "IN_PROGRESS", label: "IN PROGRESS" },
-    { id: "INSPECTION_PASSED", label: "PASSED" },
-    { id: "CERTIFICATE_ISSUED", label: "CERTIFIED" },
-  ];
-
-  const filteredApps = applications.filter(a =>
-    selectedFilter === "ALL" ? true : a.status === selectedFilter
-  );
-
-  // Summary stats
+  const filtered = apps.filter(a => filter === "ALL" || a.status === filter);
   const counts = {
-    total: applications.length,
-    pending: applications.filter(a => ["SUBMITTED", "UNDER_SCRUTINY"].includes(a.status)).length,
-    inProgress: applications.filter(a => a.status === "IN_PROGRESS").length,
-    passed: applications.filter(a => a.status === "INSPECTION_PASSED").length,
-    failed: applications.filter(a => a.status === "INSPECTION_FAILED").length,
-    certified: applications.filter(a => a.status === "CERTIFICATE_ISSUED").length,
+    total: apps.length,
+    pending: apps.filter(a => ["SUBMITTED", "UNDER_SCRUTINY"].includes(a.status)).length,
+    inProgress: apps.filter(a => a.status === "IN_PROGRESS").length,
+    passed: apps.filter(a => a.status === "INSPECTION_PASSED").length,
+    failed: apps.filter(a => a.status === "INSPECTION_FAILED").length,
+    certified: apps.filter(a => a.status === "CERTIFICATE_ISSUED").length,
   };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] text-slate-400 space-y-3">
-        <Scale className="w-5 h-5 animate-pulse text-blue-500" />
-        <span className="font-mono text-xs tracking-widest">LOADING INSPECTOR WORKSTATION…</span>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6 w-full max-w-[1400px] mx-auto pb-12">
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
-      <div className="border-b border-slate-800 pb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <ShieldCheck className="w-4 h-4 text-blue-400" />
-          <span className="font-mono text-xs text-blue-400 font-bold tracking-widest uppercase">Inspector Workstation</span>
-        </div>
-        <h2 className="font-display text-3xl font-bold text-white tracking-tight">Inspection Queue</h2>
-        <p className="text-sm text-slate-400 mt-1">Legal Metrology Act, 2009 — Maharashtra Enforcement Framework</p>
+    <div className="space-y-8 pb-12">
+      {/* Header */}
+      <div className="border-b border-iron pb-6">
+        <h2 className="font-display font-bold text-4xl text-warm tracking-tight">Inspection Queue</h2>
+        <p className="text-silver text-sm mt-1.5">Legal Metrology Act, 2009 — Maharashtra Enforcement</p>
       </div>
 
-      {/* ── WORKLOAD DASHBOARD STATS ──────────────────────────────── */}
-      <div className="border border-slate-800 bg-[#0a0f1d]">
-        <div className="border-b border-slate-800 px-6 py-3">
-          <span className="font-mono text-[10px] text-slate-500 tracking-widest uppercase">WORKLOAD SUMMARY</span>
-        </div>
-        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-slate-800">
-          {[
-            { label: "TOTAL", value: counts.total, color: "text-white" },
-            { label: "PENDING", value: counts.pending, color: "text-blue-400" },
-            { label: "IN PROGRESS", value: counts.inProgress, color: "text-amber-400" },
-            { label: "PASSED", value: counts.passed, color: "text-emerald-400" },
-            { label: "FAILED", value: counts.failed, color: "text-rose-400" },
-            { label: "CERTIFIED", value: counts.certified, color: "text-emerald-500" },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="px-4 py-5 text-center">
-              <div className={`font-display font-extrabold text-4xl ${color}`}>{value < 10 ? `0${value}` : value}</div>
-              <div className="font-mono text-[10px] text-slate-500 tracking-widest mt-1">{label}</div>
-            </div>
-          ))}
-        </div>
+      {/* Stats bar */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 border border-iron divide-x divide-iron bg-charcoal">
+        {[
+          { label: "Total",      val: counts.total,      color: "text-fog" },
+          { label: "Pending",    val: counts.pending,    color: "text-fog" },
+          { label: "In Progress",val: counts.inProgress, color: "text-amber" },
+          { label: "Passed",     val: counts.passed,     color: "text-pass" },
+          { label: "Failed",     val: counts.failed,     color: "text-fail" },
+          { label: "Certified",  val: counts.certified,  color: "text-pass" },
+        ].map(({ label, val, color }) => (
+          <div key={label} className="px-4 py-6 text-center">
+            <div className={`font-display font-extrabold text-5xl ${color}`}>{val < 10 ? `0${val}` : val}</div>
+            <div className="font-mono text-[10px] text-ash uppercase tracking-widest mt-2">{label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* ── FILTER TABS ─────────────────────────────────────────────── */}
-      <div className="flex gap-1 overflow-x-auto">
-        {FILTER_TABS.map(tab => (
+      {/* Filter tabs */}
+      <div className="flex gap-1 flex-wrap">
+        {FILTERS.map(f => (
           <button
-            key={tab.id}
-            onClick={() => setSelectedFilter(tab.id)}
-            className={`px-4 py-2 font-mono text-xs font-bold tracking-wider border transition whitespace-nowrap ${
-              selectedFilter === tab.id
-                ? "bg-blue-950/60 border-blue-600/60 text-blue-300"
-                : "border-slate-800 text-slate-500 hover:text-slate-300 hover:border-slate-700 bg-transparent"
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 font-mono text-xs font-bold tracking-wider border transition-colors ${
+              filter === f
+                ? "border-amber/60 bg-amber/10 text-amber"
+                : "border-iron text-ash hover:text-fog hover:border-steel"
             }`}
           >
-            {tab.label}
-            {tab.id !== "ALL" && (
-              <span className="ml-2 text-[10px] opacity-60">
-                {applications.filter(a => tab.id === "ALL" || a.status === tab.id).length}
-              </span>
-            )}
+            {f.replace(/_/g, " ")}
           </button>
         ))}
       </div>
 
-      {/* ── INSPECTION QUEUE TABLE ────────────────────────────────── */}
-      {filteredApps.length === 0 ? (
-        <div className="border border-slate-800 bg-[#080c14] py-16 text-center">
-          <div className="font-display text-xl font-bold text-slate-500 mb-2">NO ACTIVE INSPECTIONS</div>
-          <p className="font-mono text-xs text-slate-600">Your assigned inspection queue is currently empty for this filter.</p>
+      {/* Table */}
+      {loading ? (
+        <div className="py-20 text-center font-mono text-sm text-ash">Loading inspection queue…</div>
+      ) : filtered.length === 0 ? (
+        <div className="border border-iron py-20 text-center bg-charcoal">
+          <div className="font-display text-2xl font-bold text-steel mb-2">No Inspections</div>
+          <p className="font-mono text-xs text-ash">Queue is empty for this filter.</p>
         </div>
       ) : (
-        <div className="border border-slate-800">
-          {/* Table Header */}
-          <div className="grid grid-cols-12 border-b border-slate-800 px-4 py-2 bg-[#05080e]">
-            {["APPLICATION ID", "INSTRUMENT", "OWNER", "DISTRICT", "STATUS", "ACTIONS"].map((h, i) => (
-              <div key={h} className={`font-mono text-[10px] text-slate-600 tracking-widest uppercase ${
-                i === 0 ? "col-span-2" : i === 1 ? "col-span-2" : i === 2 ? "col-span-3" : i === 3 ? "col-span-2" : i === 4 ? "col-span-1" : "col-span-2"
-              }`}>
-                {h}
-              </div>
+        <div className="border border-iron">
+          {/* Table header */}
+          <div className="grid grid-cols-12 border-b border-iron px-4 py-2.5 bg-onyx">
+            {[
+              { label: "Application", span: "col-span-2" },
+              { label: "Instrument", span: "col-span-2" },
+              { label: "Owner", span: "col-span-3" },
+              { label: "District", span: "col-span-2" },
+              { label: "Status", span: "col-span-1" },
+              { label: "Actions", span: "col-span-2" },
+            ].map(({ label, span }) => (
+              <div key={label} className={`${span} font-mono text-[9px] text-ash uppercase tracking-widest`}>{label}</div>
             ))}
           </div>
 
-          {/* Table Rows */}
-          {filteredApps.map(app => {
+          {/* Rows */}
+          {filtered.map((app, idx) => {
             const inst = app.instrument;
-            const cfg = STATUS_CONFIG[app.status] || { label: app.status, color: "text-slate-400" };
+            const cfg = STATUS[app.status] || { label: app.status, color: "text-ash" };
             const canInspect = ["SCHEDULED", "APPROVED", "IN_PROGRESS"].includes(app.status);
             const canApprove = app.status === "SUBMITTED";
-            const canSchedule = app.status === "SUBMITTED" || app.status === "UNDER_SCRUTINY";
 
             return (
-              <div key={app.id} className="grid grid-cols-12 border-b border-slate-800 px-4 py-4 hover:bg-slate-900/30 transition items-center group">
-                <div className="col-span-2">
-                  <div className="font-mono text-xs font-bold text-blue-400">{app.application_id}</div>
-                  <div className="font-mono text-[10px] text-slate-600 mt-0.5">{app.application_type?.replace(/_/g, " ")}</div>
+              <motion.div
+                key={app.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: idx * 0.04 }}
+                className="grid grid-cols-12 border-b border-iron px-4 py-4 hover:bg-charcoal transition-colors items-center"
+              >
+                <div className="col-span-2 space-y-0.5">
+                  <div className="font-mono text-xs font-bold text-amber">{app.application_id}</div>
+                  <div className="font-mono text-[9px] text-steel">{app.application_type?.replace(/_/g, " ")}</div>
+                </div>
+                <div className="col-span-2 space-y-0.5">
+                  <div className="font-mono text-xs text-fog">{inst?.instrument_type?.replace(/_/g, " ") || "—"}</div>
+                  <div className="font-mono text-[9px] text-steel">{inst?.model}</div>
+                </div>
+                <div className="col-span-3 space-y-0.5 min-w-0">
+                  <div className="text-xs text-fog truncate">{inst?.owner_name || "—"}</div>
+                  <div className="font-mono text-[9px] text-steel truncate">{inst?.business_name}</div>
                 </div>
                 <div className="col-span-2">
-                  <div className="font-mono text-xs text-slate-300">{inst?.instrument_type?.replace(/_/g, " ") || "—"}</div>
-                  <div className="font-mono text-[10px] text-slate-500 mt-0.5">{inst?.model}</div>
-                </div>
-                <div className="col-span-3">
-                  <div className="text-xs text-slate-300 truncate">{inst?.owner_name || "—"}</div>
-                  <div className="font-mono text-[10px] text-slate-500 mt-0.5 truncate">{inst?.business_name}</div>
-                </div>
-                <div className="col-span-2">
-                  <div className="flex items-center gap-1 text-xs text-slate-400">
-                    <MapPin className="w-3 h-3 text-slate-600" />
-                    {inst?.district || "—"}
+                  <div className="font-mono text-xs text-ash flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-steel" />{inst?.district || "—"}
                   </div>
                 </div>
                 <div className="col-span-1">
                   <span className={`font-mono text-[10px] font-bold ${cfg.color}`}>{cfg.label}</span>
                 </div>
-                <div className="col-span-2 flex flex-wrap gap-1">
+                <div className="col-span-2 flex flex-wrap gap-1.5">
                   {canInspect && (
                     <button
                       onClick={() => onSelectInspection(app.id)}
-                      className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white font-mono text-[10px] font-bold tracking-wider border border-blue-400/40 flex items-center gap-1 transition"
+                      className="px-3 py-1.5 bg-amber hover:bg-amber-light text-black font-mono text-[10px] font-bold flex items-center gap-1 transition-colors"
                     >
                       INSPECT <ChevronRight className="w-3 h-3" />
                     </button>
                   )}
                   {canApprove && (
                     <button
-                      onClick={() => handleApprove(app.id)}
-                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-400 font-mono text-[10px] border border-slate-700 transition"
+                      onClick={async () => { await api.approveApplication(app.id); loadData(); }}
+                      className="px-3 py-1.5 border border-iron text-pass font-mono text-[10px] hover:border-pass/40 hover:bg-pass/5 transition-colors"
                     >
                       APPROVE
-                    </button>
-                  )}
-                  {canSchedule && (
-                    <button
-                      onClick={() => setScheduleModal(app)}
-                      className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-amber-400 font-mono text-[10px] border border-slate-800 transition"
-                    >
-                      SCHEDULE
                     </button>
                   )}
                   {canApprove && (
                     <button
                       onClick={() => setRejectModal({ id: app.id, reason: "" })}
-                      className="px-2.5 py-1 bg-slate-900 hover:bg-rose-950 text-rose-400 font-mono text-[10px] border border-slate-800 hover:border-rose-800 transition"
+                      className="px-3 py-1.5 border border-iron text-fail font-mono text-[10px] hover:border-fail/40 hover:bg-fail/5 transition-colors"
                     >
                       REJECT
                     </button>
                   )}
+                  {["SUBMITTED", "UNDER_SCRUTINY"].includes(app.status) && (
+                    <button
+                      onClick={() => setSchedModal(app)}
+                      className="px-3 py-1.5 border border-iron text-amber font-mono text-[10px] hover:border-amber/40 transition-colors"
+                    >
+                      SCHEDULE
+                    </button>
+                  )}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
-      {/* ── REJECT MODAL ──────────────────────────────────────────── */}
-      {rejectModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0a0f1d] border border-slate-700 space-y-0">
-            <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span className="font-mono text-xs font-bold text-rose-400 tracking-widest uppercase">Reject Application</span>
-            </div>
-            <form onSubmit={handleRejectSubmit} className="p-6 space-y-4">
-              <p className="text-sm text-slate-400">You must provide a specific reason for rejection. This will be recorded in the audit ledger.</p>
-              <textarea
-                required
-                placeholder="Specific reason for rejection (e.g. Nameplate missing, Sealing provision defective)..."
-                value={rejectModal.reason}
-                onChange={(e) => setRejectModal(prev => prev ? { ...prev, reason: e.target.value } : null)}
-                rows={4}
-                className="w-full bg-[#05080e] border border-slate-800 px-4 py-3 text-sm text-slate-200 font-mono placeholder:text-slate-600 focus:outline-none focus:border-rose-600 resize-none"
-              />
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setRejectModal(null)} className="flex-1 py-2.5 border border-slate-700 text-slate-400 font-mono text-xs hover:bg-slate-900 transition">CANCEL</button>
-                <button type="submit" className="flex-1 py-2.5 bg-rose-700 hover:bg-rose-600 text-white font-mono text-xs font-bold border border-rose-500/40 transition">CONFIRM REJECT</button>
+      {/* Reject modal */}
+      <AnimatePresence>
+        {rejectModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setRejectModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 8 }}
+              className="w-full max-w-md bg-onyx border border-iron"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="border-b border-iron px-6 py-4 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-fail" />
+                <span className="font-mono text-xs font-bold text-fail uppercase tracking-wider">Reject Application</span>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (!rejectModal.reason.trim()) return;
+                await api.rejectApplication(rejectModal.id, rejectModal.reason);
+                setRejectModal(null); loadData();
+              }} className="p-6 space-y-4">
+                <p className="text-sm text-silver">State the specific reason for rejection. This is recorded in the audit ledger.</p>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="e.g. Nameplate missing, sealing provision defective..."
+                  value={rejectModal.reason}
+                  onChange={e => setRejectModal(p => p ? { ...p, reason: e.target.value } : null)}
+                  className="w-full bg-black border border-iron px-4 py-3 text-sm text-warm font-mono placeholder:text-steel focus:outline-none focus:border-fail/60 resize-none transition-colors"
+                />
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setRejectModal(null)} className="flex-1 py-2.5 border border-iron text-ash font-mono text-xs hover:border-steel transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 py-2.5 bg-fail hover:bg-fail/80 text-white font-mono text-xs font-bold transition-colors">Confirm Reject</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* ── SCHEDULE MODAL ────────────────────────────────────────── */}
-      {scheduleModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0a0f1d] border border-slate-700 space-y-0">
-            <div className="border-b border-slate-800 px-6 py-4">
-              <span className="font-mono text-xs font-bold text-amber-400 tracking-widest uppercase">Schedule Inspection</span>
-              <div className="font-mono text-[11px] text-slate-500 mt-1">{scheduleModal.application_id}</div>
-            </div>
-            <form onSubmit={handleScheduleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="font-mono text-[10px] text-slate-500 tracking-widest uppercase block mb-1">Date</label>
-                <input type="date" required value={schedDate} onChange={(e) => setSchedDate(e.target.value)}
-                  className="w-full bg-[#05080e] border border-slate-800 px-4 py-2.5 font-mono text-sm text-white focus:outline-none focus:border-blue-600"
-                />
+      {/* Schedule modal */}
+      <AnimatePresence>
+        {schedModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+            onClick={() => setSchedModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 16 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 8 }}
+              className="w-full max-w-md bg-onyx border border-iron"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="border-b border-iron px-6 py-4">
+                <span className="font-mono text-xs font-bold text-amber uppercase tracking-wider">Schedule Inspection</span>
+                <div className="font-mono text-[10px] text-ash mt-0.5">{schedModal.application_id}</div>
               </div>
-              <div>
-                <label className="font-mono text-[10px] text-slate-500 tracking-widest uppercase block mb-1">Time</label>
-                <input type="text" required value={schedTime} onChange={(e) => setSchedTime(e.target.value)}
-                  placeholder="10:30 AM"
-                  className="w-full bg-[#05080e] border border-slate-800 px-4 py-2.5 font-mono text-sm text-white focus:outline-none focus:border-blue-600"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setScheduleModal(null)} className="flex-1 py-2.5 border border-slate-700 text-slate-400 font-mono text-xs hover:bg-slate-900 transition">CANCEL</button>
-                <button type="submit" className="flex-1 py-2.5 bg-amber-700 hover:bg-amber-600 text-white font-mono text-xs font-bold border border-amber-500/40 transition">CONFIRM SCHEDULE</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                await api.scheduleApplication(schedModal.id, { scheduled_date: schedDate, scheduled_time: schedTime, test_centre_or_premises: schedModal.instrument?.address || "Trader Premises", inspector_id: 2 });
+                setSchedModal(null); loadData();
+              }} className="p-6 space-y-4">
+                {[
+                  { label: "Date", type: "date", value: schedDate, onChange: setSchedDate },
+                  { label: "Time", type: "text", value: schedTime, onChange: setSchedTime, placeholder: "10:30 AM" },
+                ].map(({ label, type, value, onChange, placeholder }) => (
+                  <div key={label} className="space-y-1.5">
+                    <label className="font-mono text-[10px] text-ash uppercase tracking-widest">{label}</label>
+                    <input
+                      type={type}
+                      required
+                      value={value}
+                      onChange={e => onChange(e.target.value)}
+                      placeholder={placeholder}
+                      className="w-full bg-black border border-iron px-4 py-3 font-mono text-sm text-warm focus:outline-none focus:border-amber transition-colors"
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setSchedModal(null)} className="flex-1 py-2.5 border border-iron text-ash font-mono text-xs hover:border-steel transition-colors">Cancel</button>
+                  <button type="submit" className="flex-1 py-2.5 bg-amber hover:bg-amber-light text-black font-mono text-xs font-bold transition-colors">Confirm Schedule</button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { LanguageProvider, useLanguage } from "./i18n/LanguageContext";
+import { AnimatePresence, motion } from "framer-motion";
+import { LanguageProvider } from "./i18n/LanguageContext";
 import { Navbar } from "./components/Navbar";
 import { HomePage } from "./pages/HomePage";
 import { ApplicantDashboard } from "./pages/ApplicantDashboard";
@@ -12,54 +13,80 @@ import { AuditLogViewer } from "./pages/AuditLogViewer";
 import { PublicVerify } from "./pages/PublicVerify";
 import { CertificatePage } from "./pages/CertificatePage";
 
+const pageVariants = {
+  initial: { opacity: 0, y: 18 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
+  exit:    { opacity: 0, y: -8, transition: { duration: 0.2, ease: "easeIn" as const } },
+};
+
 const MainContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState("home");
-  const [activeInspectionAppId, setActiveInspectionAppId] = useState<number | null>(null);
-
-  const handleLaunchInspection = (appId: number) => {
-    setActiveInspectionAppId(appId);
-    setActiveTab("execution");
-  };
+  const [inspectionAppId, setInspectionAppId] = useState<number | null>(null);
 
   const navigate = (tab: string) => {
     setActiveTab(tab);
-    if (tab !== "execution") setActiveInspectionAppId(null);
+    if (tab !== "execution") setInspectionAppId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const launchInspection = (appId: number) => {
+    setInspectionAppId(appId);
+    setActiveTab("execution");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const renderPage = () => {
+    switch (activeTab) {
+      case "home":         return <HomePage onNavigate={navigate} />;
+      case "applicant":    return <ApplicantDashboard onNavigateToInspect={launchInspection} />;
+      case "inspector":    return <InspectorDashboard onSelectInspection={launchInspection} />;
+      case "execution":    return inspectionAppId
+        ? <InspectionExecution applicationId={inspectionAppId} onBack={() => navigate("inspector")} />
+        : null;
+      case "high_capacity": return <HighCapacityCalculator />;
+      case "diagnostics":  return <DiagnosticsPage />;
+      case "admin":        return <AdminDashboard />;
+      case "audit":        return <AuditLogViewer />;
+      case "verify":       return <PublicVerify />;
+      case "certificates": return <CertificatePage />;
+      default:             return <HomePage onNavigate={navigate} />;
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080c14] text-slate-100">
+    <div className="min-h-screen flex flex-col bg-black text-ivory">
       <Navbar activeTab={activeTab} setActiveTab={navigate} />
 
-      <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "home" && <HomePage onNavigate={navigate} />}
-        {activeTab === "applicant" && <ApplicantDashboard onNavigateToInspect={handleLaunchInspection} />}
-        {activeTab === "inspector" && <InspectorDashboard onSelectInspection={handleLaunchInspection} />}
-        {activeTab === "execution" && activeInspectionAppId && (
-          <InspectionExecution
-            applicationId={activeInspectionAppId}
-            onBack={() => navigate("inspector")}
-          />
-        )}
-        {activeTab === "high_capacity" && <HighCapacityCalculator />}
-        {activeTab === "diagnostics" && <DiagnosticsPage />}
-        {activeTab === "admin" && <AdminDashboard />}
-        {activeTab === "audit" && <AuditLogViewer />}
-        {activeTab === "verify" && <PublicVerify />}
-        {activeTab === "certificates" && <CertificatePage />}
+      <main className={`flex-1 ${activeTab === "home" ? "" : "max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-12"}`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            variants={pageVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+          >
+            {renderPage()}
+          </motion.div>
+        </AnimatePresence>
       </main>
 
-      <footer className="border-t border-slate-800 bg-[#05080e] py-6 px-8">
-        <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="font-display font-bold text-sm text-slate-300">METROVERIFY v2</div>
-            <div className="font-mono text-[11px] text-slate-600 mt-0.5">Digital Legal Metrology Verification & Audit Ledger System</div>
+      {activeTab !== "home" && (
+        <footer className="border-t border-iron bg-charcoal py-8 px-6 lg:px-12">
+          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-4">
+            <button onClick={() => navigate("home")} className="flex items-center gap-2.5 group">
+              <div className="w-6 h-6 bg-amber flex items-center justify-center shrink-0">
+                <div className="w-2.5 h-2.5 bg-black" style={{ clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }} />
+              </div>
+              <span className="font-display font-bold text-sm text-fog group-hover:text-amber transition-colors">MetroVerify</span>
+            </button>
+            <div className="font-mono text-[11px] text-steel text-right leading-relaxed">
+              <div>Legal Metrology Act, 2009 · General Rules 2011 (Amendment 2026)</div>
+              <div className="text-[#2a2a2a] mt-0.5">Hackathon prototype · Not an official government portal</div>
+            </div>
           </div>
-          <div className="font-mono text-[11px] text-slate-600 text-right">
-            <div>Aligned with Legal Metrology Act, 2009 & General Rules 2011 (Amended 2025/2026)</div>
-            <div className="mt-0.5">Maharashtra Enforcement Framework | Rule 2026.4 | SHA-256 Audit Chain</div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 };

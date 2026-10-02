@@ -1,146 +1,158 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { api } from "../api/client";
-import { RotateCcw, ChevronDown, ChevronRight, Shield, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, Shield, CheckCircle, XCircle } from "lucide-react";
 
-const EVENT_COLORS: Record<string, string> = {
-  CERTIFICATE_ISSUED: "text-emerald-400",
-  INSPECTION_COMPLETED: "text-blue-400",
-  INSPECTION_STARTED: "text-blue-300",
-  MEASUREMENT_RECORDED: "text-slate-300",
-  MPE_CALCULATED: "text-slate-300",
-  APPLICATION_SUBMITTED: "text-amber-400",
-  APPLICATION_APPROVED: "text-amber-300",
-  CERTIFICATE_REVOKED: "text-rose-400",
+const ACTION_COLORS: Record<string, string> = {
+  CERTIFICATE_ISSUED:    "text-pass",
+  INSPECTION_COMPLETED:  "text-amber",
+  INSPECTION_STARTED:    "text-fog",
+  MEASUREMENT_RECORDED:  "text-silver",
+  APPLICATION_SUBMITTED: "text-fog",
+  APPLICATION_APPROVED:  "text-amber-light",
+  CERTIFICATE_REVOKED:   "text-fail",
 };
 
 export const AuditLogViewer: React.FC = () => {
-  const [events, setEvents] = useState<any[]>([]);
-  const [chainStatus, setChainStatus] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [events, setEvents]       = useState<any[]>([]);
+  const [chain, setChain]         = useState<any>(null);
+  const [loading, setLoading]     = useState(true);
+  const [expanded, setExpanded]   = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([api.getAuditEvents(), api.verifyAuditChain()])
-      .then(([evts, chain]) => { setEvents(evts); setChainStatus(chain); })
+      .then(([evts, c]) => { setEvents(evts); setChain(c); })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-3">
-        <RotateCcw className="w-5 h-5 animate-spin text-blue-500" />
-        <span className="font-mono text-xs text-slate-400 tracking-widest">LOADING AUDIT LEDGER…</span>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+      <Shield className="w-6 h-6 text-amber animate-pulse" />
+      <span className="font-mono text-sm text-ash">Verifying hash chain…</span>
+    </div>
+  );
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-6 pb-12">
+    <div className="space-y-8 pb-12">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Shield className="w-4 h-4 text-blue-400" />
-          <span className="font-mono text-xs text-blue-400 font-bold tracking-widest">CRYPTOGRAPHIC AUDIT LEDGER</span>
-        </div>
-        <h2 className="font-display text-3xl font-bold text-white tracking-tight">System Audit Trail</h2>
-        <p className="text-sm text-slate-400 mt-1">Append-only SHA-256 hash-chained event log. Any tampering invalidates the chain.</p>
+      <div className="border-b border-iron pb-6">
+        <h2 className="font-display font-bold text-4xl text-warm tracking-tight">Audit Trail</h2>
+        <p className="text-silver text-sm mt-1.5">SHA-256 hash-chained append-only event ledger.</p>
       </div>
 
-      {/* Chain Integrity Status */}
-      {chainStatus && (
-        <div className={`border px-6 py-4 flex items-center justify-between ${
-          chainStatus.is_valid
-            ? "border-emerald-800 bg-emerald-950/30"
-            : "border-rose-800 bg-rose-950/30"
-        }`}>
-          <div>
-            <div className={`font-mono text-xs font-bold tracking-widest ${chainStatus.is_valid ? "text-emerald-400" : "text-rose-400"}`}>
-              {chainStatus.is_valid ? "✓ HASH CHAIN INTEGRITY: VERIFIED" : "✕ HASH CHAIN INTEGRITY: COMPROMISED"}
+      {/* Chain integrity */}
+      {chain && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`flex items-center justify-between px-6 py-5 border ${
+            chain.is_valid
+              ? "border-pass/30 bg-passBg"
+              : "border-fail/30 bg-failBg"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            {chain.is_valid
+              ? <CheckCircle className="w-6 h-6 text-pass" />
+              : <XCircle className="w-6 h-6 text-fail" />
+            }
+            <div>
+              <div className={`font-mono text-xs font-bold uppercase tracking-widest ${chain.is_valid ? "text-pass" : "text-fail"}`}>
+                {chain.is_valid ? "Hash Chain Integrity Verified" : "Hash Chain Integrity Compromised"}
+              </div>
+              <div className="font-mono text-[11px] text-ash mt-0.5">{chain.message}</div>
             </div>
-            <div className="font-mono text-[11px] text-slate-500 mt-1">{chainStatus.message}</div>
           </div>
-          <div className="font-mono text-2xl font-extrabold text-slate-400">{chainStatus.total_events}</div>
-        </div>
+          <div className="font-display font-extrabold text-5xl text-iron">{chain.total_events}</div>
+        </motion.div>
       )}
 
-      {/* Events Log */}
+      {/* Events */}
       {events.length === 0 ? (
-        <div className="border border-slate-800 py-16 text-center">
-          <div className="font-display text-xl font-bold text-slate-500 mb-2">NO AUDIT EVENTS</div>
-          <p className="font-mono text-xs text-slate-600">Audit events are recorded when applications, inspections, and certificates are created.</p>
+        <div className="border border-iron py-20 text-center bg-charcoal">
+          <div className="font-display text-2xl font-bold text-steel mb-2">No Events</div>
+          <p className="font-mono text-xs text-ash">Audit events are written when actions occur in the system.</p>
         </div>
       ) : (
-        <div className="border border-slate-800">
-          {/* Table Header */}
-          <div className="grid grid-cols-12 border-b border-slate-800 px-4 py-2 bg-[#05080e]">
-            <div className="col-span-2 font-mono text-[10px] text-slate-600 tracking-widest">TIMESTAMP</div>
-            <div className="col-span-3 font-mono text-[10px] text-slate-600 tracking-widest">EVENT</div>
-            <div className="col-span-2 font-mono text-[10px] text-slate-600 tracking-widest">ACTOR</div>
-            <div className="col-span-3 font-mono text-[10px] text-slate-600 tracking-widest">ENTITY</div>
-            <div className="col-span-2 font-mono text-[10px] text-slate-600 tracking-widest">HASH (PREVIEW)</div>
+        <div className="border border-iron">
+          {/* Header row */}
+          <div className="grid grid-cols-12 border-b border-iron px-4 py-2.5 bg-onyx">
+            {[
+              { label: "Timestamp", span: "col-span-2" },
+              { label: "Action", span: "col-span-3" },
+              { label: "Actor", span: "col-span-2" },
+              { label: "Entity", span: "col-span-3" },
+              { label: "Hash", span: "col-span-2" },
+            ].map(({ label, span }) => (
+              <div key={label} className={`${span} font-mono text-[9px] text-ash uppercase tracking-widest`}>{label}</div>
+            ))}
           </div>
 
-          {events.map((evt) => {
-            const isExpanded = expandedId === evt.event_id;
-            const color = EVENT_COLORS[evt.action] || "text-slate-400";
+          {events.map((evt, idx) => {
+            const isExp = expanded === evt.event_id;
+            const color = ACTION_COLORS[evt.action] || "text-ash";
             const ts = new Date(evt.timestamp);
-            const timeStr = ts.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-            const dateStr = ts.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-
             return (
-              <div key={evt.event_id} className="border-b border-slate-800 last:border-0">
+              <div key={evt.event_id} className="border-b border-iron last:border-0">
                 <button
-                  onClick={() => setExpandedId(isExpanded ? null : evt.event_id)}
-                  className="w-full grid grid-cols-12 px-4 py-3 hover:bg-slate-900/30 transition items-center text-left"
+                  onClick={() => setExpanded(isExp ? null : evt.event_id)}
+                  className="w-full grid grid-cols-12 px-4 py-3.5 hover:bg-charcoal transition-colors items-center text-left"
                 >
-                  <div className="col-span-2">
-                    <div className="font-mono text-xs text-white font-bold">{timeStr}</div>
-                    <div className="font-mono text-[10px] text-slate-600">{dateStr}</div>
+                  <div className="col-span-2 space-y-0.5">
+                    <div className="font-mono text-xs font-bold text-warm">{ts.toLocaleTimeString("en-IN", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+                    <div className="font-mono text-[9px] text-steel">{ts.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</div>
                   </div>
                   <div className="col-span-3">
-                    <span className={`font-mono text-xs font-bold ${color}`}>{evt.action}</span>
+                    <span className={`font-mono text-[11px] font-bold ${color}`}>{evt.action}</span>
                   </div>
-                  <div className="col-span-2">
-                    <div className="font-mono text-xs text-slate-400">{evt.user_id || "SYSTEM"}</div>
-                    <div className="font-mono text-[10px] text-slate-600">{evt.user_role}</div>
+                  <div className="col-span-2 space-y-0.5">
+                    <div className="font-mono text-[11px] text-fog">{evt.user_id || "SYSTEM"}</div>
+                    <div className="font-mono text-[9px] text-steel">{evt.user_role}</div>
                   </div>
-                  <div className="col-span-3">
-                    <div className="font-mono text-xs text-slate-300">{evt.entity_type}</div>
-                    <div className="font-mono text-[10px] text-slate-500 truncate">{evt.entity_id}</div>
+                  <div className="col-span-3 space-y-0.5">
+                    <div className="font-mono text-[11px] text-fog">{evt.entity_type}</div>
+                    <div className="font-mono text-[9px] text-steel truncate">{evt.entity_id}</div>
                   </div>
                   <div className="col-span-2 flex items-center justify-between">
-                    <span className="font-mono text-[10px] text-slate-600">{evt.chain_hash?.slice(0, 10)}…</span>
-                    {isExpanded
-                      ? <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
-                      : <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
-                    }
+                    <span className="font-mono text-[9px] text-steel">{evt.chain_hash?.slice(0, 8)}…</span>
+                    {isExp ? <ChevronDown className="w-3.5 h-3.5 text-ash" /> : <ChevronRight className="w-3.5 h-3.5 text-steel" />}
                   </div>
                 </button>
 
-                {isExpanded && (
-                  <div className="bg-[#05080e] border-t border-slate-800 px-6 py-4 grid grid-cols-2 gap-4">
-                    {[
-                      { label: "EVENT ID", value: evt.event_id },
-                      { label: "IP ADDRESS", value: evt.ip_address || "—" },
-                      { label: "CHAIN HASH (FULL)", value: evt.chain_hash, wide: true },
-                      { label: "PREVIOUS HASH", value: evt.previous_hash || "[GENESIS]", wide: true },
-                    ].map(({ label, value, wide }) => (
-                      <div key={label} className={wide ? "col-span-2" : ""}>
-                        <div className="font-mono text-[10px] text-slate-600 tracking-widest uppercase mb-1">{label}</div>
-                        <div className="font-mono text-[11px] text-slate-300 break-all">{value}</div>
+                <AnimatePresence>
+                  {isExp && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" as const }}
+                      className="overflow-hidden"
+                    >
+                      <div className="bg-black border-t border-iron px-6 py-5 grid grid-cols-2 gap-4">
+                        {[
+                          { label: "Event ID", value: evt.event_id, wide: false },
+                          { label: "IP Address", value: evt.ip_address || "—", wide: false },
+                          { label: "Chain Hash (full)", value: evt.chain_hash, wide: true },
+                          { label: "Previous Hash", value: evt.previous_hash || "[GENESIS BLOCK]", wide: true },
+                        ].map(({ label, value, wide }) => (
+                          <div key={label} className={wide ? "col-span-2" : ""}>
+                            <div className="font-mono text-[9px] text-ash uppercase tracking-widest mb-1">{label}</div>
+                            <div className="font-mono text-[11px] text-silver break-all">{value}</div>
+                          </div>
+                        ))}
+                        {evt.new_value_json && (
+                          <div className="col-span-2">
+                            <div className="font-mono text-[9px] text-ash uppercase tracking-widest mb-1">Payload</div>
+                            <pre className="font-mono text-[10px] text-ash bg-charcoal border border-iron p-4 overflow-x-auto leading-relaxed">
+                              {JSON.stringify(JSON.parse(evt.new_value_json || "{}"), null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    {evt.new_value_json && (
-                      <div className="col-span-2">
-                        <div className="font-mono text-[10px] text-slate-600 tracking-widest uppercase mb-1">PAYLOAD</div>
-                        <pre className="font-mono text-[11px] text-slate-400 bg-[#080c14] border border-slate-800 p-3 overflow-x-auto">
-                          {JSON.stringify(JSON.parse(evt.new_value_json || "{}"), null, 2)}
-                        </pre>
-                      </div>
-                    )}
-                  </div>
-                )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
