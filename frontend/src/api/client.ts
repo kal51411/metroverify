@@ -1,10 +1,12 @@
 const BASE_URL = ""
 
 export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem("metroverify_token");
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: "Bearer " + token } : {}),
       ...(options.headers || {})
     }
   });
@@ -20,6 +22,9 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit = {}): 
 }
 
 export const api = {
+  login: (username: string, password: string) => apiFetch<any>("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  getMe: () => apiFetch<any>("/api/auth/me"),
+
   getInstruments: () => apiFetch<any[]>("/api/instruments"),
   getInstrument: (id: number) => apiFetch<any>(`/api/instruments/${id}`),
   createInstrument: (data: any) => apiFetch<any>("/api/instruments", { method: "POST", body: JSON.stringify(data) }),
@@ -49,6 +54,11 @@ export const api = {
   getCertificate: (id: number) => apiFetch<any>(`/api/certificates/${id}`),
   generateCertificate: (appId: number) => apiFetch<any>(`/api/certificates/application/${appId}/generate`, { method: "POST" }),
   getCertificateQr: (id: number) => apiFetch<any>(`/api/certificates/${id}/qr`),
+  getRenewalQueue: (window_days = 90, page = 1, page_size = 20) => apiFetch<any>(`/api/certificates/renewals/queue?window_days=${window_days}&page=${page}&page_size=${page_size}`),
+  getRenewalMetrics: (window_days = 90) => apiFetch<any>(`/api/certificates/renewals/metrics?window_days=${window_days}`),
+  createRenewalApplication: (certificateId: number) => apiFetch<any>(`/api/certificates/${certificateId}/renewals`, { method: "POST" }),
+  triggerRenewalReminder: (certificateId: number, channels: string[]) =>
+    apiFetch<any>(`/api/certificates/${certificateId}/renewal-reminders`, { method: "POST", body: JSON.stringify({ channels }) }),
   
   verifyPublic: (ref: string) => apiFetch<any>(`/api/verify/${encodeURIComponent(ref)}`),
   

@@ -9,6 +9,8 @@ from app.models.alerts import ValidityAlert, AlertSeverityEnum, AlertStatusEnum
 from app.services.v3_auth_service import create_access_token
 
 client = TestClient(app)
+_token = create_access_token({"sub": "admin", "role": "ADMIN"})
+client.headers.update({"Authorization": f"Bearer {_token}"})
 
 def test_gatc_centres_api():
     res = client.get("/api/gatc/centres")

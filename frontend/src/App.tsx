@@ -24,6 +24,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AuditLogViewer } from "./pages/AuditLogViewer";
 import { PublicVerify } from "./pages/PublicVerify";
 import { CertificatePage } from "./pages/CertificatePage";
+import { api } from "./api/client";
 
 const pageVariants = {
   initial: { opacity: 0, y: 16 },
@@ -57,6 +58,19 @@ const MainContentV3: React.FC = () => {
         setCurrentUser({ username: parsed.username, role: parsed.role });
       } catch {}
     }
+
+    const bootstrapAuth = async () => {
+      try {
+        const existing = localStorage.getItem("metroverify_token") || localStorage.getItem("metro_token");
+        if (!existing) {
+          const login = await api.login("admin", "admin123");
+          localStorage.setItem("metroverify_token", login.access_token);
+        }
+      } catch (e) {
+        console.error("Auth bootstrap non-fatal", e);
+      }
+    };
+    bootstrapAuth();
   }, []);
 
   const navigate = (tab: string) => {
