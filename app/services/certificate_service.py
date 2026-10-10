@@ -149,6 +149,121 @@ class CertificateService:
         return cert
 
     @classmethod
+    def issue_certificate(
+        cls,
+        db: Session,
+        inspection_id: int,
+        officer_user: any
+    ) -> VerificationCertificate:
+        inspection = db.query(Inspection).options(
+            joinedload(Inspection.instrument),
+            joinedload(Inspection.application)
+        ).filter(Inspection.id == inspection_id).first()
+
+        if not inspection:
+            raise HTTPException(status_code=404, detail="Inspection not found.")
+
+        # Check existing
+        existing = db.query(VerificationCertificate).filter(
+            VerificationCertificate.inspection_id == inspection.id
+        ).first()
+        if existing:
+            return existing
+
+        app = inspection.application
+        inst = inspection.instrument
+        now = datetime.utcnow()
+        year = now.year
+        count = db.query(VerificationCertificate).count() + 1
+        cert_num = f"LM-CERT-{year}-{str(count).zfill(4)}"
+
+        interval_info = determine_verification_interval(
+            instrument_category=inst.instrument_type if inst else "NON_AUTOMATIC_WEIGHING_INSTRUMENT",
+            instrument_type=inst.instrument_type if inst else "NON_AUTOMATIC_WEIGHING_INSTRUMENT",
+            verification_date=now
+        )
+        valid_until = interval_info["next_due_date"]
+        interval_months = interval_info["interval_months"]
+        qr_token = f"tok_{uuid.uuid4().hex}"
+
+        vdate_str = now.strftime("%Y-%m-%d")
+        due_str = valid_until.strftime("%Y-%m-%d")
+
+        cert_hash = cls.compute_certificate_hash(
+            certificate_id=cert_num,
+            instrument_id=inst.instrument_id if inst else "INST-001",
+            inspection_id=inspection.inspection_id,
+            result="PASS",
+            verification_date_str=vdate_str,
+            valid_until_str=due_str,
+            ruleset_version=inspection.ruleset_version or "Legal Metrology (General) Rules, 2011"
+        )
+
+        officer_name = getattr(officer_user, "full_name", None) or getattr(officer_user, "username", "Legal Metrology Officer")
+        office_name = "State Directorate Legal Metrology Maharashtra"
+        if app and app.jurisdiction:
+            office_name = app.jurisdiction.office_name
+
+        fee_ref = "GRAS-MH-2026-CHALLAN"
+        if app and app.payments:
+            p = app.payments[0]
+            fee_ref = p.gras_grn or p.challan_number
+
+        app_id = app.id if app else None
+        if not app_id:
+            first_app = db.query(Application).first()
+            app_id = first_app.id if first_app else 1
+
+        cert = VerificationCertificate(
+            certificate_id=cert_num,
+            certificate_number=cert_num,
+            application_id=app_id,
+            instrument_id=inst.id if inst else 1,
+            inspection_id=inspection.id,
+            verification_date=now,
+            valid_until=valid_until,
+            interval_months=interval_months,
+            result="PASS",
+            officer_name=officer_name,
+            officer_designation="Inspector / Legal Metrology Officer",
+            office_name=office_name,
+            test_location=inspection.test_location or "Premises of User",
+            fee_reference=fee_ref,
+            previous_certificate_number=inst.previous_certificate_id if inst else None,
+            ruleset_version=inspection.ruleset_version or "Legal Metrology (General) Rules, 2011",
+            certificate_version="2.0",
+            qr_token=qr_token,
+            certificate_hash=cert_hash,
+            status=CertificateStatusEnum.ACTIVE
+        )
+        db.add(cert)
+
+        if app:
+            app.status = ApplicationStatusEnum.CERTIFICATE_ISSUED
+            app.completed_at = now
+        if inst:
+            inst.status = InstrumentStatusEnum.VERIFIED
+            inst.last_verification_date = now
+            inst.next_due_date = valid_until
+            inst.previous_certificate_id = cert_num
+
+        db.flush()
+
+        AuditService.log_event(
+            db=db,
+            action="CERTIFICATE_ISSUED",
+            entity_type="VerificationCertificate",
+            entity_id=cert.certificate_number,
+            user_id=str(getattr(officer_user, "id", "2")),
+            user_role="INSPECTOR",
+            new_value={"certificate_id": cert.certificate_number, "valid_until": str(valid_until), "hash": cert_hash}
+        )
+
+        db.commit()
+        db.refresh(cert)
+        return cert
+
+    @classmethod
     def verify_public_certificate(cls, db: Session, certificate_ref: str) -> dict:
         cert = db.query(VerificationCertificate).options(
             joinedload(VerificationCertificate.instrument),

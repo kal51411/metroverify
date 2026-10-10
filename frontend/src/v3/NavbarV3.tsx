@@ -15,11 +15,10 @@ export function NavbarV3({ activeTab, setActiveTab, onOpenGeoModal, currentUser,
 
   const navItems = [
     { id: "home", label: "Overview" },
+    { id: "hub", label: "Command Hub" },
     { id: "telemetry", label: "IoT Telemetry" },
     { id: "ai-assistant", label: "AI Vision OCR" },
-    { id: "admin-analytics", label: "Analytics" },
-    { id: "applicant", label: "Applicant Portal" },
-    { id: "inspector", label: "Inspector Portal" },
+    { id: "ledger", label: "Public Ledger" },
   ];
 
   const handleNavClick = (tabId: string) => {

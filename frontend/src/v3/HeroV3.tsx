@@ -149,7 +149,7 @@ export function HeroV3({ onNavigate }: HeroV3Props) {
             title: "Tamper-Evident Ledger", 
             badge: "SHA-256 Ledger",
             desc: "Cryptographically chained immutable audit records certifying every field inspection and load test.", 
-            link: "admin-analytics" 
+            link: "hub" 
           }
         ].map((card, idx) => {
           const Icon = card.icon;

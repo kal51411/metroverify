@@ -11,6 +11,8 @@ import { AdminAnalyticsDashboard } from "./v3/AdminAnalyticsDashboard";
 import { PublicVerificationView } from "./v3/PublicVerificationView";
 import { AuthModal } from "./v3/AuthModal";
 import { FooterV3 } from "./v3/FooterV3";
+import { UnifiedCommandHub } from "./v3/UnifiedCommandHub";
+import { UniversalLedgerSearch } from "./v3/UniversalLedgerSearch";
 
 // v2 Pages fully preserved with zero regression
 import { ApplicantDashboard } from "./pages/ApplicantDashboard";
@@ -75,13 +77,7 @@ const MainContentV3: React.FC = () => {
 
   const handleAuthSuccess = (user: { username: string; role: string; token: string }) => {
     setCurrentUser({ username: user.username, role: user.role });
-    if (user.role === "INSPECTOR") {
-      setActiveTab("inspector");
-    } else if (user.role === "ADMIN") {
-      setActiveTab("admin-analytics");
-    } else {
-      setActiveTab("applicant");
-    }
+    setActiveTab("hub");
   };
 
   const handleLogout = () => {
@@ -94,20 +90,22 @@ const MainContentV3: React.FC = () => {
   const renderPage = () => {
     switch (activeTab) {
       case "home":             return <HeroV3 onNavigate={navigate} />;
+      case "hub":              return <UnifiedCommandHub onNavigateToInspect={launchInspection} onOpenGeoModal={() => setIsGeoModalOpen(true)} />;
       case "telemetry":        return <TelemetryDashboard />;
       case "ai-assistant":     return <AIInspectionAssistant />;
+      case "ledger":           return <UniversalLedgerSearch onSelectCert={(id) => { setVerifyCertId(id); setActiveTab("public-verify"); }} />;
       case "admin-analytics":  return <AdminAnalyticsDashboard />;
       case "public-verify":    return <PublicVerificationView certificateId={verifyCertId} onBack={() => navigate("home")} />;
-      case "applicant":        return <ApplicantDashboard onNavigateToInspect={launchInspection} />;
-      case "inspector":        return <InspectorDashboard onSelectInspection={launchInspection} />;
+      case "applicant":        return <UnifiedCommandHub onNavigateToInspect={launchInspection} onOpenGeoModal={() => setIsGeoModalOpen(true)} />;
+      case "inspector":        return <UnifiedCommandHub onNavigateToInspect={launchInspection} onOpenGeoModal={() => setIsGeoModalOpen(true)} />;
       case "execution":        return inspectionAppId
-        ? <InspectionExecution applicationId={inspectionAppId} onBack={() => navigate("inspector")} />
-        : <InspectorDashboard onSelectInspection={launchInspection} />;
+        ? <InspectionExecution applicationId={inspectionAppId} onBack={() => navigate("hub")} />
+        : <UnifiedCommandHub onNavigateToInspect={launchInspection} onOpenGeoModal={() => setIsGeoModalOpen(true)} />;
       case "high_capacity":    return <HighCapacityCalculator />;
       case "diagnostics":      return <DiagnosticsPage />;
-      case "admin":            return <AdminDashboard />;
+      case "admin":            return <UnifiedCommandHub onNavigateToInspect={launchInspection} onOpenGeoModal={() => setIsGeoModalOpen(true)} />;
       case "audit":            return <AuditLogViewer />;
-      case "verify":           return <PublicVerify />;
+      case "verify":           return <UniversalLedgerSearch onSelectCert={(id) => { setVerifyCertId(id); setActiveTab("public-verify"); }} />;
       case "certificates":     return <CertificatePage />;
       default:                 return <HeroV3 onNavigate={navigate} />;
     }

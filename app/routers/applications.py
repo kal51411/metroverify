@@ -17,7 +17,7 @@ from app.models.users import User
 from app.models.jurisdictions import Jurisdiction
 from app.schemas.applications import (
     ApplicationCreate, ApplicationOut, ScheduleRequest, RejectRequest,
-    QueryCreateRequest, QueryRespondRequest, PaymentCreateRequest
+    QueryCreateRequest, QueryRespondRequest, PaymentCreateRequest, AllocateRequest
 )
 from app.rules.jurisdictions import validate_application_jurisdiction
 from app.services.audit_service import AuditService
@@ -429,3 +429,53 @@ def schedule_application(
     
     db.commit()
     return {"message": "Inspection scheduled successfully", "status": app.status.value}
+
+@router.patch("/{application_id}/allocate")
+def allocate_application(
+    application_id: int,
+    payload: AllocateRequest,
+    allocator_id: int = 2,
+    db: Session = Depends(get_db)
+):
+    app = db.query(Application).filter(Application.id == application_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    app.allocation_target = payload.allocation_target
+    if payload.allocation_target == "GATC":
+        app.assigned_gatc_id = payload.gatc_id
+    else:
+        app.assigned_inspector_id = payload.inspector_id
+
+    if payload.scheduled_date:
+        app.scheduled_date = payload.scheduled_date
+    if payload.scheduled_time:
+        app.scheduled_time = payload.scheduled_time
+    if payload.test_centre_or_premises:
+        app.test_centre_or_premises = payload.test_centre_or_premises
+    if payload.priority:
+        app.priority = payload.priority
+    if payload.notes:
+        app.notes = payload.notes
+
+    app.status = ApplicationStatusEnum.SCHEDULED
+    app.scheduled_at = datetime.utcnow()
+
+    AuditService.log_event(
+        db=db,
+        action="APPLICATION_ALLOCATED",
+        entity_type="Application",
+        entity_id=app.application_id,
+        user_id=str(allocator_id),
+        user_role="SUPERVISOR",
+        new_value={
+            "target": payload.allocation_target,
+            "inspector_id": payload.inspector_id,
+            "gatc_id": payload.gatc_id,
+            "date": payload.scheduled_date
+        }
+    )
+
+    db.commit()
+    db.refresh(app)
+    return {"message": f"Application allocated to {payload.allocation_target} successfully", "status": app.status.value}

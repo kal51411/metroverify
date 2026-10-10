@@ -72,8 +72,10 @@ class Application(Base):
     jurisdiction_status = Column(Enum(JurisdictionStatusEnum), default=JurisdictionStatusEnum.VALID_JURISDICTION, nullable=False)
     jurisdiction_notes = Column(Text, nullable=True)
     
-    # Scheduling & Inspector Assignment
+    # Scheduling & Inspector / GATC Allocation
+    allocation_target = Column(String(50), default="LMO") # LMO or GATC
     assigned_inspector_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    assigned_gatc_id = Column(Integer, ForeignKey("gatc_centres.id"), nullable=True)
     scheduled_date = Column(String(50), nullable=True)
     scheduled_time = Column(String(50), nullable=True)
     test_centre_or_premises = Column(String(255), nullable=True)
@@ -87,6 +89,7 @@ class Application(Base):
     
     instrument = relationship("Instrument", back_populates="applications")
     applicant = relationship("User", foreign_keys=[applicant_id], back_populates="applications")
+    assigned_gatc = relationship("GATCCentre", foreign_keys=[assigned_gatc_id], back_populates="applications")
     jurisdiction = relationship("Jurisdiction", back_populates="applications")
     documents = relationship("ApplicationDocument", back_populates="application", cascade="all, delete-orphan")
     payments = relationship("PaymentRecord", back_populates="application", cascade="all, delete-orphan")

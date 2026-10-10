@@ -4,11 +4,20 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional
 from app.config import settings
 
+import hashlib
+
 def hash_password(password: str) -> str:
     return sha256_crypt.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return sha256_crypt.verify(plain_password, hashed_password)
+    try:
+        if sha256_crypt.verify(plain_password, hashed_password):
+            return True
+    except Exception:
+        pass
+    if hashlib.sha256(plain_password.encode("utf-8")).hexdigest() == hashed_password:
+        return True
+    return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

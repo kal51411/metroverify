@@ -8,6 +8,8 @@ from app.models.rulesets import Ruleset, MPEBand, FeeRule, VerificationIntervalR
 from app.models.inspections import Inspection, InspectionTestStep, TestMeasurement, SealRecord, InspectionEvidence, TestTemplate
 from app.models.certificates import VerificationCertificate, CertificateStatusEnum
 from app.models.audit import AuditEvent
+from app.models.gatc import GATCCentre
+from app.models.alerts import ValidityAlert, AlertSeverityEnum, AlertStatusEnum
 
 __all__ = [
     "Base", "User", "RoleEnum", "Jurisdiction", "Office",
@@ -17,5 +19,6 @@ __all__ = [
     "StandardAsset", "StandardHierarchyEnum", "AssetStatusEnum",
     "Ruleset", "MPEBand", "FeeRule", "VerificationIntervalRule",
     "Inspection", "InspectionTestStep", "TestMeasurement", "SealRecord", "InspectionEvidence", "TestTemplate",
-    "VerificationCertificate", "CertificateStatusEnum", "AuditEvent"
+    "VerificationCertificate", "CertificateStatusEnum", "AuditEvent",
+    "GATCCentre", "ValidityAlert", "AlertSeverityEnum", "AlertStatusEnum"
 ]

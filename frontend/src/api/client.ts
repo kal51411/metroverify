@@ -59,5 +59,18 @@ export const api = {
   verifyAuditChain: () => apiFetch<any>("/api/audit/verify-chain"),
   
   analyzeSignal: (samples: number[]) => apiFetch<any>("/api/diagnostics/signal-stability", { method: "POST", body: JSON.stringify(samples) }),
-  evaluateCreep: (load: number, start: number, end: number, duration: number) => apiFetch<any>(`/api/diagnostics/creep?load_kg=${load}&start_reading_kg=${start}&end_reading_kg=${end}&duration_minutes=${duration}`)
+  evaluateCreep: (load: number, start: number, end: number, duration: number) => apiFetch<any>(`/api/diagnostics/creep?load_kg=${load}&start_reading_kg=${start}&end_reading_kg=${end}&duration_minutes=${duration}`),
+
+  // Statutory Legal Metrology Endpoints
+  getAlerts: (userId?: number, severity?: string) => apiFetch<any[]>(`/api/alerts?${userId ? `user_id=${userId}&` : ""}${severity ? `severity=${severity}` : ""}`),
+  generateAlerts: () => apiFetch<any>("/api/alerts/generate", { method: "POST" }),
+  acknowledgeAlert: (alertId: number) => apiFetch<any>(`/api/alerts/${alertId}/acknowledge`, { method: "PATCH" }),
+  renewAlert: (alertId: number, applicantId?: number) => apiFetch<any>(`/api/alerts/${alertId}/renew?applicant_id=${applicantId || 1}`, { method: "POST" }),
+
+  getGATCCentres: (district?: string) => apiFetch<any[]>(`/api/gatc/centres${district ? `?district=${district}` : ""}`),
+  getGATCQueue: (gatcId?: number) => apiFetch<any[]>(`/api/gatc/my-queue${gatcId ? `?gatc_id=${gatcId}` : ""}`),
+  allocateApplication: (appId: number, data: any) => apiFetch<any>(`/api/applications/${appId}/allocate`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  searchRepository: (query: string, accuracyClass?: string) => apiFetch<any>(`/api/repository/search?query=${encodeURIComponent(query)}${accuracyClass ? `&accuracy_class=${accuracyClass}` : ""}`),
+  lookupCertificate: (query: string) => apiFetch<any>(`/api/verify/lookup?query=${encodeURIComponent(query)}`)
 };

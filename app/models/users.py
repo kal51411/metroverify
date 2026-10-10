@@ -7,6 +7,8 @@ from app.database import Base
 class RoleEnum(str, enum.Enum):
     APPLICANT = "APPLICANT"
     INSPECTOR = "INSPECTOR"
+    LMO = "LMO"
+    GATC = "GATC"
     SUPERVISOR = "SUPERVISOR"
     ADMIN = "ADMIN"
     PUBLIC_VERIFIER = "PUBLIC_VERIFIER"

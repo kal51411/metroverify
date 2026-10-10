@@ -10,7 +10,7 @@ from app.routers import (
     auth, instruments, applications, inspections,
     standards, certificates, verify, rulesets,
     diagnostics, audit, v3_auth, v3_ai, v3_telemetry,
-    v3_inspections
+    v3_inspections, alerts, gatc, repository
 )
 from app.services.seed_service import seed_database
 
@@ -61,6 +61,11 @@ app.include_router(v3_auth.router)
 app.include_router(v3_ai.router)
 app.include_router(v3_telemetry.router)
 app.include_router(v3_inspections.router)
+
+# Statutory Platform Routers
+app.include_router(alerts.router)
+app.include_router(gatc.router)
+app.include_router(repository.router)
 
 @app.get("/")
 def root():

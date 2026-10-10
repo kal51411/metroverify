@@ -76,6 +76,8 @@ class ApplicationOut(BaseModel):
     jurisdiction_notes: Optional[str] = None
     
     assigned_inspector_id: Optional[int] = None
+    allocation_target: Optional[str] = "LMO"
+    assigned_gatc_id: Optional[int] = None
     scheduled_date: Optional[str] = None
     scheduled_time: Optional[str] = None
     test_centre_or_premises: Optional[str] = None
@@ -94,6 +96,16 @@ class ApplicationOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class AllocateRequest(BaseModel):
+    allocation_target: str = "LMO" # LMO or GATC
+    inspector_id: Optional[int] = None
+    gatc_id: Optional[int] = None
+    scheduled_date: Optional[str] = None
+    scheduled_time: Optional[str] = None
+    test_centre_or_premises: Optional[str] = None
+    priority: Optional[str] = "NORMAL"
+    notes: Optional[str] = None
 
 class ScheduleRequest(BaseModel):
     scheduled_date: str
