@@ -13,7 +13,7 @@ from app.models.applications import (
     DocumentStatusEnum, DocumentTypeEnum
 )
 from app.models.instruments import Instrument, InstrumentStatusEnum
-from app.models.users import User
+from app.models.users import User, RoleEnum
 from app.models.jurisdictions import Jurisdiction
 from app.schemas.applications import (
     ApplicationCreate, ApplicationOut, ScheduleRequest, RejectRequest,
@@ -21,15 +21,31 @@ from app.schemas.applications import (
 )
 from app.rules.jurisdictions import validate_application_jurisdiction
 from app.services.audit_service import AuditService
+from app.security import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
+
+_ALLOWED_UPLOAD_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
+_ALLOWED_UPLOAD_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png"}
+_MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _ensure_upload_policy(file_name: str, mime_type: str, raw_bytes: bytes):
+    ext = os.path.splitext(file_name or "")[1].lower()
+    if ext not in _ALLOWED_UPLOAD_EXTENSIONS:
+        raise HTTPException(status_code=400, detail="Unsupported file extension")
+    if (mime_type or "").lower() not in _ALLOWED_UPLOAD_MIME_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported file MIME type")
+    if len(raw_bytes) > _MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="Uploaded file is too large")
 
 @router.get("", response_model=List[ApplicationOut])
 def list_applications(
     status: Optional[str] = None,
     applicant_id: Optional[int] = None,
     inspector_id: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     q = db.query(Application).options(
         joinedload(Application.instrument),
@@ -39,14 +55,22 @@ def list_applications(
     )
     if status and status != "ALL":
         q = q.filter(Application.status == status)
-    if applicant_id:
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role == RoleEnum.APPLICANT.value:
+        q = q.filter(Application.applicant_id == current_user.id)
+    elif applicant_id:
         q = q.filter(Application.applicant_id == applicant_id)
-    if inspector_id:
+    if user_role == RoleEnum.INSPECTOR.value:
+        q = q.filter(Application.assigned_inspector_id == current_user.id)
+    elif inspector_id:
         q = q.filter(Application.assigned_inspector_id == inspector_id)
     return [ApplicationOut.model_validate(a) for a in q.order_by(Application.submitted_at.desc()).all()]
 
 @router.get("/stats/summary")
-def get_applications_stats(db: Session = Depends(get_db)):
+def get_applications_stats(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
     from app.models.certificates import VerificationCertificate
     now = datetime.utcnow()
     total_inst = db.query(Instrument).count()
@@ -75,7 +99,11 @@ def get_applications_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/{application_id}", response_model=ApplicationOut)
-def get_application(application_id: int, db: Session = Depends(get_db)):
+def get_application(
+    application_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     app = db.query(Application).options(
         joinedload(Application.instrument),
         joinedload(Application.documents),
@@ -84,13 +112,19 @@ def get_application(application_id: int, db: Session = Depends(get_db)):
     ).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
+
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role == RoleEnum.APPLICANT.value and app.applicant_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only view your own applications")
+    if user_role == RoleEnum.INSPECTOR.value and app.assigned_inspector_id not in (None, current_user.id):
+        raise HTTPException(status_code=403, detail="You are not assigned to this application")
     return ApplicationOut.model_validate(app)
 
 @router.post("", response_model=ApplicationOut)
 def create_application(
     payload: ApplicationCreate,
-    applicant_id: int = 1,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     inst = db.query(Instrument).filter(Instrument.id == payload.instrument_id).first()
     if not inst:
@@ -109,7 +143,7 @@ def create_application(
     app = Application(
         application_id=app_id,
         instrument_id=inst.id,
-        applicant_id=applicant_id,
+        applicant_id=current_user.id,
         application_type=payload.application_type,
         status=ApplicationStatusEnum.SUBMITTED,
         is_premises_verification=payload.is_premises_verification,
@@ -131,7 +165,7 @@ def create_application(
         action="APPLICATION_SUBMITTED",
         entity_type="Application",
         entity_id=app_id,
-        user_id=str(applicant_id),
+        user_id=str(current_user.id),
         user_role="APPLICANT",
         new_value={"type": payload.application_type.value, "premises": payload.is_premises_verification}
     )
@@ -146,19 +180,23 @@ async def upload_document(
     document_type: str = Form(...),
     title: str = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
         
     os.makedirs("uploads", exist_ok=True)
-    file_ext = os.path.splitext(file.filename)[1]
+    safe_name = os.path.basename(file.filename or "document.pdf")
+    content = await file.read()
+    _ensure_upload_policy(safe_name, file.content_type or "", content)
+    file_ext = os.path.splitext(safe_name)[1]
     saved_filename = f"doc_{uuid.uuid4().hex[:10]}{file_ext}"
     saved_path = os.path.join("uploads", saved_filename)
     
     with open(saved_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(content)
         
     file_size = os.path.getsize(saved_path)
     doc_id = f"DOC-{uuid.uuid4().hex[:8].upper()}"
@@ -169,7 +207,7 @@ async def upload_document(
         document_type=DocumentTypeEnum(document_type),
         title=title,
         file_path=saved_path,
-        file_name=file.filename,
+        file_name=safe_name,
         file_size=file_size,
         mime_type=file.content_type or "application/pdf",
         status=DocumentStatusEnum.UPLOADED,
@@ -182,9 +220,9 @@ async def upload_document(
         action="DOCUMENT_UPLOADED",
         entity_type="ApplicationDocument",
         entity_id=doc_id,
-        user_id=str(app.applicant_id),
+        user_id=str(current_user.id),
         user_role="APPLICANT",
-        new_value={"doc_type": document_type, "file": file.filename}
+        new_value={"doc_type": document_type, "file": safe_name}
     )
     
     db.commit()
@@ -197,7 +235,8 @@ def verify_document(
     action: str = "ACCEPT", # ACCEPT, REJECT
     rejection_reason: Optional[str] = None,
     officer_name: str = "Inspector Legal Metrology",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     doc = db.query(ApplicationDocument).filter(
         ApplicationDocument.application_id == application_id,
@@ -232,7 +271,8 @@ def verify_document(
 def record_payment(
     application_id: int,
     payload: PaymentCreateRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
@@ -268,7 +308,8 @@ def raise_query(
     application_id: int,
     payload: QueryCreateRequest,
     officer_name: str = "Assistant Controller Legal Metrology",
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
@@ -303,7 +344,8 @@ def respond_query(
     application_id: int,
     query_id: str,
     payload: QueryRespondRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     q = db.query(QueryRecord).filter(
         QueryRecord.application_id == application_id,
@@ -335,13 +377,23 @@ def respond_query(
 @router.patch("/{application_id}/approve")
 def approve_application(
     application_id: int,
-    reviewer_id: int = 2,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
         
+    if app.status == ApplicationStatusEnum.APPROVED:
+        return {"message": "Application already approved", "status": app.status.value}
+
+    if app.status not in (
+        ApplicationStatusEnum.SUBMITTED,
+        ApplicationStatusEnum.UNDER_REVIEW,
+        ApplicationStatusEnum.QUERY_RESPONDED,
+    ):
+        raise HTTPException(status_code=400, detail=f"Cannot approve application in status {app.status.value}")
+
     if app.jurisdiction_status == JurisdictionStatusEnum.WRONG_JURISDICTION:
         raise HTTPException(status_code=400, detail="Cannot approve application in WRONG_JURISDICTION status.")
         
@@ -353,7 +405,7 @@ def approve_application(
         action="APPLICATION_APPROVED",
         entity_type="Application",
         entity_id=app.application_id,
-        user_id=str(reviewer_id),
+        user_id=str(current_user.id),
         user_role="SUPERVISOR",
         new_value={"status": "APPROVED"}
     )
@@ -365,13 +417,19 @@ def approve_application(
 def reject_application(
     application_id: int,
     payload: RejectRequest,
-    reviewer_id: int = 2,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
         
+    if app.status == ApplicationStatusEnum.REJECTED:
+        return {"message": "Application already rejected", "status": app.status.value}
+
+    if app.status in (ApplicationStatusEnum.CERTIFICATE_ISSUED, ApplicationStatusEnum.ACTIVE):
+        raise HTTPException(status_code=400, detail=f"Cannot reject application in status {app.status.value}")
+
     app.status = ApplicationStatusEnum.REJECTED
     app.reviewed_at = datetime.utcnow()
     app.notes = f"Rejected: {payload.reason}"
@@ -381,7 +439,7 @@ def reject_application(
         action="APPLICATION_REJECTED",
         entity_type="Application",
         entity_id=app.application_id,
-        user_id=str(reviewer_id),
+        user_id=str(current_user.id),
         user_role="SUPERVISOR",
         reason=payload.reason
     )
@@ -393,14 +451,27 @@ def reject_application(
 def schedule_application(
     application_id: int,
     payload: ScheduleRequest,
-    scheduler_id: int = 2,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     app = db.query(Application).filter(Application.id == application_id).first()
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
         
-    if app.status not in (ApplicationStatusEnum.APPROVED, ApplicationStatusEnum.SCHEDULED, ApplicationStatusEnum.UNDER_REVIEW):
+    if app.status == ApplicationStatusEnum.SCHEDULED and (
+        app.assigned_inspector_id == payload.inspector_id
+        and app.scheduled_date == payload.scheduled_date
+        and app.scheduled_time == payload.scheduled_time
+        and app.test_centre_or_premises == payload.test_centre_or_premises
+    ):
+        return {"message": "Inspection already scheduled with same details", "status": app.status.value}
+
+    if app.status not in (
+        ApplicationStatusEnum.APPROVED,
+        ApplicationStatusEnum.SCHEDULED,
+        ApplicationStatusEnum.UNDER_REVIEW,
+        ApplicationStatusEnum.QUERY_RESPONDED,
+    ):
         raise HTTPException(status_code=400, detail=f"Cannot schedule application in status {app.status.value}")
         
     app.status = ApplicationStatusEnum.SCHEDULED
@@ -417,7 +488,7 @@ def schedule_application(
         action="INSPECTION_SCHEDULED",
         entity_type="Application",
         entity_id=app.application_id,
-        user_id=str(scheduler_id),
+        user_id=str(current_user.id),
         user_role="SUPERVISOR",
         new_value={
             "date": payload.scheduled_date,

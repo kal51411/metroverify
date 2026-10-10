@@ -4,8 +4,10 @@ from typing import List, Optional
 
 from app.database import get_db
 from app.models.audit import AuditEvent
+from app.models.users import RoleEnum, User
 from app.schemas.audit import AuditEventOut, AuditChainVerifyResponse
 from app.services.audit_service import AuditService
+from app.security import require_roles
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -14,7 +16,8 @@ def list_audit_events(
     action: Optional[str] = None,
     entity_type: Optional[str] = None,
     limit: int = 100,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     q = db.query(AuditEvent)
     if action:
@@ -24,6 +27,9 @@ def list_audit_events(
     return [AuditEventOut.model_validate(e) for e in q.order_by(AuditEvent.id.desc()).limit(limit).all()]
 
 @router.get("/verify-chain", response_model=AuditChainVerifyResponse)
-def verify_audit_chain(db: Session = Depends(get_db)):
+def verify_audit_chain(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
+):
     res = AuditService.verify_chain(db)
     return AuditChainVerifyResponse(**res)
