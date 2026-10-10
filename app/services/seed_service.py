@@ -148,7 +148,7 @@ def seed_database(db: Session, force: bool = False):
         users = [
             User(
                 username="applicant_demo",
-                email="trader.demo@metroverify.local",
+                email="trader.demo@metroverify.example.com",
                 full_name="Rajesh Sharma (Demo Trader)",
                 hashed_password=hash_pw("demo123"),
                 role=RoleEnum.APPLICANT,
@@ -158,7 +158,7 @@ def seed_database(db: Session, force: bool = False):
             ),
             User(
                 username="inspector_pune",
-                email="inspector.pune@metroverify.local",
+                email="inspector.pune@metroverify.example.com",
                 full_name="Vikram Patil",
                 hashed_password=hash_pw("demo123"),
                 role=RoleEnum.INSPECTOR,
@@ -168,7 +168,7 @@ def seed_database(db: Session, force: bool = False):
             ),
             User(
                 username="supervisor_maha",
-                email="supervisor@metroverify.local",
+                email="supervisor@metroverify.example.com",
                 full_name="Sunil Deshmukh",
                 hashed_password=hash_pw("demo123"),
                 role=RoleEnum.SUPERVISOR,
@@ -178,7 +178,7 @@ def seed_database(db: Session, force: bool = False):
             ),
             User(
                 username="admin",
-                email="admin@metroverify.local",
+                email="admin@metroverify.example.com",
                 full_name="System Administrator",
                 hashed_password=hash_pw("admin123"),
                 role=RoleEnum.ADMIN,
