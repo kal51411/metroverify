@@ -9,7 +9,8 @@ from app.models import Base
 from app.routers import (
     auth, instruments, applications, inspections,
     standards, certificates, verify, rulesets,
-    diagnostics, audit
+    diagnostics, audit, v3_auth, v3_ai, v3_telemetry,
+    v3_inspections
 )
 from app.services.seed_service import seed_database
 
@@ -25,9 +26,9 @@ if settings.SEED_DEMO_DATA:
         db.close()
 
 app = FastAPI(
-    title="MetroVerify v2 API",
+    title="MetroVerify API",
     description="Legal Metrology Digital Verification & Audit Ledger Platform",
-    version="2.0.0",
+    version="3.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -43,7 +44,7 @@ app.add_middleware(
 os.makedirs("uploads/evidence", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Include all modular routers
+# Include all modular routers (preserving all v1/v2 routes)
 app.include_router(auth.router)
 app.include_router(instruments.router)
 app.include_router(applications.router)
@@ -55,12 +56,18 @@ app.include_router(rulesets.router)
 app.include_router(diagnostics.router)
 app.include_router(audit.router)
 
+# v3 Enhanced Routers
+app.include_router(v3_auth.router)
+app.include_router(v3_ai.router)
+app.include_router(v3_telemetry.router)
+app.include_router(v3_inspections.router)
+
 @app.get("/")
 def root():
     return {
         "system": "MetroVerify v2",
         "status": "OPERATIONAL",
-        "engine_version": "2.0.0",
+        "engine_version": "3.0.0",
         "ruleset": "Legal Metrology (General) Rules, 2011 (Amended 2025/2026)",
         "state_workflow": "Maharashtra Legal Metrology Enforcement Framework",
         "demo_mode": settings.SEED_DEMO_DATA

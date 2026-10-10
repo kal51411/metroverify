@@ -1,8 +1,15 @@
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LanguageProvider } from "./i18n/LanguageContext";
-import { Navbar } from "./components/Navbar";
-import { HomePage } from "./pages/HomePage";
+import { NavbarV3 } from "./v3/NavbarV3";
+import { HeroV3 } from "./v3/HeroV3";
+import { TelemetryDashboard } from "./v3/TelemetryDashboard";
+import { AIInspectionAssistant } from "./v3/AIInspectionAssistant";
+import { MetrologyCopilot } from "./v3/MetrologyCopilot";
+import { GeoInspectionModal } from "./v3/GeoInspectionModal";
+import { FooterV3 } from "./v3/FooterV3";
+
+// v2 Pages fully preserved with zero regression
 import { ApplicantDashboard } from "./pages/ApplicantDashboard";
 import { InspectorDashboard } from "./pages/InspectorDashboard";
 import { InspectionExecution } from "./pages/InspectionExecution";
@@ -14,14 +21,15 @@ import { PublicVerify } from "./pages/PublicVerify";
 import { CertificatePage } from "./pages/CertificatePage";
 
 const pageVariants = {
-  initial: { opacity: 0, y: 18 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const } },
-  exit:    { opacity: 0, y: -8, transition: { duration: 0.2, ease: "easeIn" as const } },
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] as const } },
+  exit:    { opacity: 0, y: -10, transition: { duration: 0.2, ease: "easeInOut" as const } },
 };
 
-const MainContent: React.FC = () => {
+const MainContentV3: React.FC = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [inspectionAppId, setInspectionAppId] = useState<number | null>(null);
+  const [isGeoModalOpen, setIsGeoModalOpen] = useState(false);
 
   const navigate = (tab: string) => {
     setActiveTab(tab);
@@ -37,27 +45,33 @@ const MainContent: React.FC = () => {
 
   const renderPage = () => {
     switch (activeTab) {
-      case "home":         return <HomePage onNavigate={navigate} />;
-      case "applicant":    return <ApplicantDashboard onNavigateToInspect={launchInspection} />;
-      case "inspector":    return <InspectorDashboard onSelectInspection={launchInspection} />;
-      case "execution":    return inspectionAppId
+      case "home":           return <HeroV3 onNavigate={navigate} />;
+      case "telemetry":      return <TelemetryDashboard />;
+      case "ai-assistant":   return <AIInspectionAssistant />;
+      case "applicant":      return <ApplicantDashboard onNavigateToInspect={launchInspection} />;
+      case "inspector":      return <InspectorDashboard onSelectInspection={launchInspection} />;
+      case "execution":      return inspectionAppId
         ? <InspectionExecution applicationId={inspectionAppId} onBack={() => navigate("inspector")} />
-        : null;
-      case "high_capacity": return <HighCapacityCalculator />;
-      case "diagnostics":  return <DiagnosticsPage />;
-      case "admin":        return <AdminDashboard />;
-      case "audit":        return <AuditLogViewer />;
-      case "verify":       return <PublicVerify />;
-      case "certificates": return <CertificatePage />;
-      default:             return <HomePage onNavigate={navigate} />;
+        : <InspectorDashboard onSelectInspection={launchInspection} />;
+      case "high_capacity":  return <HighCapacityCalculator />;
+      case "diagnostics":    return <DiagnosticsPage />;
+      case "admin":          return <AdminDashboard />;
+      case "audit":          return <AuditLogViewer />;
+      case "verify":         return <PublicVerify />;
+      case "certificates":   return <CertificatePage />;
+      default:               return <HeroV3 onNavigate={navigate} />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-black text-ivory">
-      <Navbar activeTab={activeTab} setActiveTab={navigate} />
+    <div className="min-h-screen flex flex-col bg-[#0A0A0B] text-[#FAFAFA] font-sans selection:bg-cyan-500 selection:text-black">
+      <NavbarV3 
+        activeTab={activeTab} 
+        setActiveTab={navigate} 
+        onOpenGeoModal={() => setIsGeoModalOpen(true)}
+      />
 
-      <main className={`flex-1 ${activeTab === "home" ? "" : "max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-12"}`}>
+      <main className="flex-1">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -71,22 +85,19 @@ const MainContent: React.FC = () => {
         </AnimatePresence>
       </main>
 
-      {activeTab !== "home" && (
-        <footer className="border-t border-iron bg-charcoal py-8 px-6 lg:px-12">
-          <div className="max-w-[1400px] mx-auto flex flex-wrap items-center justify-between gap-4">
-            <button onClick={() => navigate("home")} className="flex items-center gap-2.5 group">
-              <div className="w-6 h-6 bg-amber flex items-center justify-center shrink-0">
-                <div className="w-2.5 h-2.5 bg-black" style={{ clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)" }} />
-              </div>
-              <span className="font-display font-bold text-sm text-fog group-hover:text-amber transition-colors">MetroVerify</span>
-            </button>
-            <div className="font-mono text-[11px] text-steel text-right leading-relaxed">
-              <div>Legal Metrology Act, 2009 · General Rules 2011 (Amendment 2026)</div>
-              <div className="text-[#2a2a2a] mt-0.5">Hackathon prototype · Not an official government portal</div>
-            </div>
-          </div>
-        </footer>
-      )}
+      {/* Floating AI Metrology Copilot Drawer */}
+      <MetrologyCopilot />
+
+      {/* Geo-Tagged Inspection Modal */}
+      <GeoInspectionModal
+        isOpen={isGeoModalOpen}
+        onClose={() => setIsGeoModalOpen(false)}
+        applicationId={inspectionAppId || 1}
+        instrumentId={1}
+      />
+
+      {/* Dedicated v3 Statutory Footer */}
+      <FooterV3 />
     </div>
   );
 };
@@ -94,7 +105,7 @@ const MainContent: React.FC = () => {
 export default function App() {
   return (
     <LanguageProvider>
-      <MainContent />
+      <MainContentV3 />
     </LanguageProvider>
   );
 }
