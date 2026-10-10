@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MapPin, Radio, CheckCircle2, XCircle, AlertTriangle, ShieldCheck, 
-  X, Check, ChevronRight, Navigation, Sparkles, Scale, RefreshCw 
+  X, Check, ChevronRight, Navigation, Sparkles, Scale, RefreshCw, FileText, Download, QrCode 
 } from "lucide-react";
 
 interface ChecklistItem {
@@ -75,7 +75,6 @@ export function GeoInspectionModal({
   // Compute calculated error and compliance
   const observedError = Number((observedLoad - targetLoad).toFixed(4));
   const absError = Math.abs(observedError);
-  // For Class III: load <= 500e (25kg) -> 0.5e, 500e < load <= 2000e (100kg) -> 1.0e (0.05kg)
   const allowedMpe = eInterval * 1.0;
   const isMeasurementCompliant = absError <= allowedMpe;
   const isOverallPass = checklist.every(c => c.passed) && isMeasurementCompliant;
@@ -162,8 +161,8 @@ export function GeoInspectionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-      {/* Frosted Backdrop */}
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -172,107 +171,123 @@ export function GeoInspectionModal({
         className="fixed inset-0 bg-black/80 backdrop-blur-md"
       />
 
-      {/* Modal Container */}
+      {/* Modal - slides up from bottom on mobile, scales on desktop */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 16 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 16 }}
+        initial={{ y: "100%", opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: "100%", opacity: 0 }}
         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-3xl rounded-3xl bg-[#111113]/90 backdrop-blur-2xl border border-white/[0.08] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden my-8"
+        className="relative w-full sm:max-w-3xl rounded-t-3xl sm:rounded-3xl bg-[#111113]/95 backdrop-blur-2xl border border-white/10 shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden max-h-[90vh] sm:max-h-[85vh] flex flex-col"
       >
         {/* Header */}
-        <div className="p-6 sm:p-8 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+        <div className="p-5 sm:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02] shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
               <Navigation className="w-5 h-5 text-cyan-400 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-display font-semibold text-lg text-[#FAFAFA]">Geo-Tagged Field Verification</span>
+                <span className="font-sans font-semibold text-base sm:text-lg text-[#FAFAFA]">Geo-Tagged Field Verification</span>
                 <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
                   v3 Radar
                 </span>
               </div>
-              <p className="text-xs text-zinc-400 font-mono mt-0.5">GPS Enforcement & Cryptographic Inspection Stamping</p>
+              <p className="text-xs text-zinc-400 font-mono mt-0.5">GPS Verification & Cryptographic Stamping</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 sm:p-8 space-y-8 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-8 space-y-6 sm:space-y-8 overflow-y-auto">
           {submissionResult ? (
-            /* Success confirmation card */
+            /* Success confirmation card with PDF and QR Download */
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-center py-8 space-y-6"
+              className="text-center py-6 sm:py-8 space-y-6"
             >
               <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
 
               <div>
-                <h3 className="font-display font-semibold text-2xl text-[#FAFAFA]">Inspection Certified & Hashed</h3>
-                <p className="text-sm text-zinc-400 mt-1 font-mono">
-                  Reference: <span className="text-cyan-400">{submissionResult.inspection_id}</span>
+                <h3 className="font-sans font-semibold text-xl sm:text-2xl text-[#FAFAFA]">Inspection Certified & Hashed</h3>
+                <p className="text-xs sm:text-sm text-zinc-400 mt-1 font-mono">
+                  Inspection: <span className="text-cyan-400 font-bold">{submissionResult.inspection_id}</span>
                 </p>
               </div>
 
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] text-left max-w-lg mx-auto font-mono text-xs space-y-3">
-                <div className="flex justify-between border-b border-white/[0.04] pb-2">
-                  <span className="text-zinc-500">Decision Status:</span>
+              <div className="p-5 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/5 text-left max-w-lg mx-auto font-mono text-xs space-y-3">
+                <div className="flex justify-between border-b border-white/5 pb-2">
+                  <span className="text-zinc-500">Statutory Status:</span>
                   <span className="text-emerald-400 font-bold">{submissionResult.final_result}</span>
                 </div>
-                <div className="flex justify-between border-b border-white/[0.04] pb-2">
+                {submissionResult.certificate_id && (
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-zinc-500">Issued Certificate ID:</span>
+                    <span className="text-cyan-400 font-bold">{submissionResult.certificate_id}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-b border-white/5 pb-2">
                   <span className="text-zinc-500">GPS Verified At:</span>
-                  <span className="text-[#FAFAFA]">{submissionResult.geo_latitude.toFixed(5)}, {submissionResult.geo_longitude.toFixed(5)}</span>
+                  <span className="text-[#FAFAFA]">{submissionResult.geo_latitude.toFixed(4)}, {submissionResult.geo_longitude.toFixed(4)}</span>
                 </div>
-                <div className="border-b border-white/[0.04] pb-2">
-                  <span className="text-zinc-500 block mb-1">SHA-256 Audit Integrity Hash:</span>
+                <div className="border-b border-white/5 pb-2">
+                  <span className="text-zinc-500 block mb-1">Audit Integrity Hash:</span>
                   <span className="text-cyan-400 break-all text-[10px]">{submissionResult.audit_hash}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-500 block mb-1">Statutory Determination:</span>
-                  <span className="text-zinc-300">{submissionResult.decision_summary}</span>
                 </div>
               </div>
 
-              <button
-                onClick={onClose}
-                className="px-8 py-3.5 rounded-xl bg-cyan-500 text-black font-semibold text-sm hover:bg-cyan-400 transition-all shadow-[0_0_30px_rgba(14,165,233,0.3)]"
-              >
-                Close Verification Modal
-              </button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                {submissionResult.certificate_id && (
+                  <a
+                    href={`/api/certificates/${submissionResult.certificate_id}/pdf`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-cyan-500 text-black font-semibold text-xs hover:bg-cyan-400 transition-all shadow-[0_0_25px_rgba(14,165,233,0.3)]"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Official PDF Certificate</span>
+                  </a>
+                )}
+                <button
+                  onClick={onClose}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-full bg-white/5 border border-white/10 text-zinc-300 text-xs hover:text-white hover:bg-white/10 transition-all"
+                >
+                  Close Window
+                </button>
+              </div>
             </motion.div>
           ) : (
             <>
               {/* GPS Radar Strip */}
-              <div className="p-5 rounded-2xl bg-black/40 border border-white/[0.06] flex flex-wrap items-center justify-between gap-4">
+              <div className="p-4 sm:p-5 rounded-2xl bg-black/40 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="relative flex items-center justify-center">
+                  <div className="relative flex items-center justify-center shrink-0">
                     <span className="absolute w-6 h-6 rounded-full bg-cyan-500/20 animate-ping" />
                     <Radio className="w-5 h-5 text-cyan-400 relative z-10" />
                   </div>
                   <div>
-                    <div className="text-xs font-mono text-zinc-400">
-                      Coordinates: <span className="text-[#FAFAFA] font-bold">{coords.lat}° N, {coords.lng}° E</span>
+                    <div className="text-xs font-mono text-zinc-300">
+                      GPS Lock: <strong className="text-[#FAFAFA]">{coords.lat}° N, {coords.lng}° E</strong>
                     </div>
                     <div className="text-[11px] font-mono text-zinc-500">
-                      Satellite Accuracy: ±{coords.accuracy}m · Geo-Fence Lock: Active
+                      Accuracy: ±{coords.accuracy}m · Geo-Fence: Active
                     </div>
                   </div>
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleSimulateGPSRefresh}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-mono text-zinc-300 hover:text-white hover:border-cyan-500/40 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-colors"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${!gpsLock ? "animate-spin" : ""}`} />
                   <span>Acquire GPS</span>
@@ -281,92 +296,87 @@ export function GeoInspectionModal({
 
               {/* Physical Location */}
               <div>
-                <label className="text-xs font-mono text-zinc-400 block mb-2">Verified Inspection Premise Address</label>
+                <label className="text-xs font-mono text-zinc-400 block mb-2">Verified Premise Address</label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/[0.08] text-sm text-[#FAFAFA] font-sans outline-none focus:border-cyan-500/50"
+                  className="w-full px-4 py-3 rounded-2xl bg-black/40 border border-white/10 text-sm text-[#FAFAFA] outline-none focus:border-cyan-500/50"
                 />
               </div>
 
-              {/* Statutory Metrology Checklist */}
+              {/* Checklist */}
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-display font-semibold text-sm text-[#FAFAFA] tracking-tight">
-                    Statutory Metrology Compliance Checklist
-                  </h4>
-                  <span className="text-xs font-mono text-zinc-500">Schedule VII Rules</span>
-                </div>
+                <h4 className="font-sans font-semibold text-sm text-[#FAFAFA] tracking-tight mb-3">
+                  Statutory Metrology Compliance Checklist (Schedule VII)
+                </h4>
 
                 <div className="space-y-3">
                   {checklist.map((item) => (
                     <div
                       key={item.id}
                       onClick={() => toggleChecklist(item.id)}
-                      className={`group p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-4 ${
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 ${
                         item.passed
                           ? "bg-emerald-500/[0.03] border-emerald-500/20 hover:border-emerald-500/40"
                           : "bg-red-500/[0.03] border-red-500/20 hover:border-red-500/40"
                       }`}
                     >
                       <div>
-                        <div className="font-display font-medium text-sm text-[#FAFAFA] flex items-center gap-2">
-                          <span>{item.label}</span>
-                        </div>
-                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{item.description}</p>
+                        <div className="font-sans font-medium text-sm text-[#FAFAFA]">{item.label}</div>
+                        <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{item.description}</p>
                       </div>
 
                       <button
                         type="button"
-                        className={`shrink-0 w-8 h-8 rounded-xl flex items-center justify-center font-bold transition-all ${
+                        className={`shrink-0 w-7 h-7 rounded-xl flex items-center justify-center font-bold transition-all ${
                           item.passed
-                            ? "bg-emerald-400 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                            : "bg-zinc-800 text-zinc-400 border border-white/[0.08]"
+                            ? "bg-emerald-400 text-black shadow-[0_0_12px_rgba(16,185,129,0.3)]"
+                            : "bg-zinc-800 text-zinc-400 border border-white/10"
                         }`}
                       >
-                        {item.passed ? <Check className="w-4 h-4 stroke-[3]" /> : <X className="w-4 h-4" />}
+                        {item.passed ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <X className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Load Measurement Trial */}
-              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              {/* Indication Error Test Trial */}
+              <div className="p-5 sm:p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="font-display font-medium text-sm text-[#FAFAFA]">Indication Error Test (Trial 1)</span>
-                  <span className="text-xs font-mono text-cyan-400">Accuracy Class III (e = 0.05kg)</span>
+                  <span className="font-sans font-medium text-sm text-[#FAFAFA]">Indication Error Test (Trial 1)</span>
+                  <span className="text-xs font-mono text-cyan-400">Class III (e = 0.05kg)</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-mono text-zinc-400 block mb-1.5">Standard Test Load (kg)</label>
+                    <label className="text-xs font-mono text-zinc-400 block mb-1.5">Standard Load (kg)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={targetLoad}
                       onChange={(e) => setTargetLoad(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-sm text-[#FAFAFA] font-mono outline-none focus:border-cyan-500/50"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-black/40 border border-white/10 text-sm text-[#FAFAFA] font-mono outline-none focus:border-cyan-500/50"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-mono text-zinc-400 block mb-1.5">Observed Indication (kg)</label>
+                    <label className="text-xs font-mono text-zinc-400 block mb-1.5">Observed Reading (kg)</label>
                     <input
                       type="number"
                       step="0.01"
                       value={observedLoad}
                       onChange={(e) => setObservedLoad(Number(e.target.value))}
-                      className="w-full px-4 py-2.5 rounded-xl bg-black/40 border border-white/[0.08] text-sm text-[#FAFAFA] font-mono outline-none focus:border-cyan-500/50"
+                      className="w-full px-4 py-2.5 rounded-2xl bg-black/40 border border-white/10 text-sm text-[#FAFAFA] font-mono outline-none focus:border-cyan-500/50"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs font-mono">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-black/40 border border-white/5 text-xs font-mono gap-2">
                   <span className="text-zinc-400">
-                    Calculated Error: <strong className={observedError >= 0 ? "text-cyan-400" : "text-amber-400"}>
+                    Observed Error: <strong className={observedError >= 0 ? "text-cyan-400" : "text-amber-400"}>
                       {observedError > 0 ? `+${observedError}` : observedError} kg
-                    </strong> (MPE Threshold: ±{allowedMpe} kg)
+                    </strong> (MPE: ±{allowedMpe} kg)
                   </span>
                   <span className={isMeasurementCompliant ? "text-emerald-400 font-bold" : "text-red-400 font-bold"}>
                     {isMeasurementCompliant ? "WITHIN MPE (PASS)" : "EXCEEDS MPE (FAIL)"}
@@ -375,16 +385,16 @@ export function GeoInspectionModal({
               </div>
 
               {errorMessage && (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
+                <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-mono">
                   {errorMessage}
                 </div>
               )}
 
               {/* Submit CTA */}
-              <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between">
-                <div className="text-xs font-mono">
+              <div className="pt-4 border-t border-white/5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="text-xs font-mono text-center sm:text-left">
                   Status: <strong className={isOverallPass ? "text-emerald-400" : "text-red-400"}>
-                    {isOverallPass ? "STATUTORY COMPLIANT" : "REJECTION CRITERIA MET"}
+                    {isOverallPass ? "STATUTORY PASS" : "REJECT"}
                   </strong>
                 </div>
 
@@ -392,7 +402,7 @@ export function GeoInspectionModal({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="px-5 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-zinc-300 hover:text-white hover:bg-white/[0.08] transition-all"
+                    className="flex-1 sm:flex-none px-5 py-3 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-300 hover:text-white hover:bg-white/10 transition-all"
                   >
                     Cancel
                   </button>
@@ -400,13 +410,10 @@ export function GeoInspectionModal({
                     type="button"
                     onClick={handleSubmitInspection}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-7 py-3 rounded-xl bg-cyan-500 text-black font-semibold text-sm hover:bg-cyan-400 transition-all shadow-[0_0_25px_rgba(14,165,233,0.3)] disabled:opacity-50"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-semibold text-xs hover:from-cyan-400 hover:to-blue-500 transition-all shadow-[0_0_20px_rgba(14,165,233,0.3)] disabled:opacity-50"
                   >
                     {isSubmitting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-                        <span>Hashing & Logging...</span>
-                      </>
+                      <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
                         <span>Submit Verification</span>
