@@ -40,8 +40,7 @@ def verify_password(password: str, stored_hash: str) -> bool:
         except Exception:
             return False
 
-    legacy = hashlib.sha256(password.encode("utf-8")).hexdigest()
-    return hmac.compare_digest(legacy, stored_hash)
+    return False
 
 
 def create_access_token(user: User) -> str:
