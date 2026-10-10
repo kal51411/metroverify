@@ -5,14 +5,47 @@ import { CheckCircle, Lock, QrCode, Download, ChevronLeft } from "lucide-react";
 
 export const CertificatePage: React.FC = () => {
   const [certs, setCerts] = useState<any[]>([]);
+  const [renewals, setRenewals] = useState<any[]>([]);
+  const [renewalMetrics, setRenewalMetrics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
 
   useEffect(() => {
-    api.getCertificates()
-      .then(data => { setCerts(data); setLoading(false); })
+    Promise.all([api.getCertificates(), api.getRenewalQueue(90, 1, 10), api.getRenewalMetrics(90)])
+      .then(([certData, queueData, metricsData]) => {
+        setCerts(certData);
+        setRenewals(queueData.items || []);
+        setRenewalMetrics(metricsData);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, []);
+
+  const handleCreateRenewal = async (certificateId: number) => {
+    try {
+      setActionLoadingId(certificateId);
+      await api.createRenewalApplication(certificateId);
+      const queueData = await api.getRenewalQueue(90, 1, 10);
+      setRenewals(queueData.items || []);
+    } catch (e: any) {
+      alert(`Unable to create renewal application: ${e.message}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleReminder = async (certificateId: number) => {
+    try {
+      setActionLoadingId(certificateId);
+      await api.triggerRenewalReminder(certificateId, ["EMAIL", "SMS", "WHATSAPP"]);
+      alert("Renewal reminder dispatched (EMAIL/SMS/WHATSAPP).");
+    } catch (e: any) {
+      alert(`Unable to trigger reminder: ${e.message}`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -177,6 +210,66 @@ export const CertificatePage: React.FC = () => {
       <div className="border-b border-iron pb-6">
         <h2 className="font-display font-bold text-4xl text-warm tracking-tight">Certificate Ledger</h2>
         <p className="text-silver text-sm mt-1.5">All issued Schedule IX verification certificates.</p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 border border-iron p-4 bg-charcoal">
+        <div>
+          <div className="font-mono text-[10px] text-ash uppercase tracking-widest">Due in 90d</div>
+          <div className="font-display text-3xl text-warm font-extrabold">{renewalMetrics?.due_in_90_days ?? 0}</div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] text-ash uppercase tracking-widest">Due in 30d</div>
+          <div className="font-display text-3xl text-amber font-extrabold">{renewalMetrics?.due_in_30_days ?? 0}</div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] text-ash uppercase tracking-widest">Due in 7d</div>
+          <div className="font-display text-3xl text-fail font-extrabold">{renewalMetrics?.due_in_7_days ?? 0}</div>
+        </div>
+        <div>
+          <div className="font-mono text-[10px] text-ash uppercase tracking-widest">Overdue</div>
+          <div className="font-display text-3xl text-fail font-extrabold">{renewalMetrics?.overdue_count ?? 0}</div>
+        </div>
+      </div>
+
+      <div className="border border-iron">
+        <div className="grid grid-cols-12 border-b border-iron px-4 py-2.5 bg-onyx">
+          <div className="col-span-3 font-mono text-[9px] text-ash uppercase tracking-widest">Renewal Queue</div>
+          <div className="col-span-2 font-mono text-[9px] text-ash uppercase tracking-widest">Expires</div>
+          <div className="col-span-2 font-mono text-[9px] text-ash uppercase tracking-widest">SLA Bucket</div>
+          <div className="col-span-3 font-mono text-[9px] text-ash uppercase tracking-widest">Application</div>
+          <div className="col-span-2 font-mono text-[9px] text-ash uppercase tracking-widest">Actions</div>
+        </div>
+        {renewals.length === 0 ? (
+          <div className="px-4 py-8 font-mono text-xs text-ash">No certificates in the 90-day renewal window.</div>
+        ) : (
+          renewals.map((item) => (
+            <div key={item.certificate_id} className="grid grid-cols-12 border-b border-iron px-4 py-3 items-center">
+              <div className="col-span-3">
+                <div className="font-mono text-xs font-bold text-amber">{item.certificate_number}</div>
+                <div className="font-mono text-[10px] text-steel">{item.business_name}</div>
+              </div>
+              <div className="col-span-2 font-mono text-xs text-fog">{item.days_until_expiry} days</div>
+              <div className="col-span-2 font-mono text-xs text-ash">{item.sla_bucket.replace(/_/g, " ")}</div>
+              <div className="col-span-3 font-mono text-xs text-fog">{item.renewal_application_id || "Not created"}</div>
+              <div className="col-span-2 flex gap-2">
+                <button
+                  onClick={() => handleReminder(item.certificate_id)}
+                  disabled={actionLoadingId === item.certificate_id}
+                  className="px-2 py-1 border border-iron text-[10px] font-mono text-ash hover:text-amber"
+                >
+                  REMIND
+                </button>
+                <button
+                  onClick={() => handleCreateRenewal(item.certificate_id)}
+                  disabled={actionLoadingId === item.certificate_id}
+                  className="px-2 py-1 bg-amber text-black text-[10px] font-mono font-bold"
+                >
+                  RENEW
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {certs.length === 0 ? (

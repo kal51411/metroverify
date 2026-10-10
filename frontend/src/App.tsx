@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { LanguageProvider } from "./i18n/LanguageContext";
 import { Navbar } from "./components/Navbar";
@@ -12,6 +12,7 @@ import { AdminDashboard } from "./pages/AdminDashboard";
 import { AuditLogViewer } from "./pages/AuditLogViewer";
 import { PublicVerify } from "./pages/PublicVerify";
 import { CertificatePage } from "./pages/CertificatePage";
+import { api } from "./api/client";
 
 const pageVariants = {
   initial: { opacity: 0, y: 18 },
@@ -22,6 +23,26 @@ const pageVariants = {
 const MainContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [inspectionAppId, setInspectionAppId] = useState<number | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    const bootstrapAuth = async () => {
+      try {
+        const existing = localStorage.getItem("metroverify_token");
+        if (existing) {
+          setAuthReady(true);
+          return;
+        }
+        const login = await api.login("admin", "admin123");
+        localStorage.setItem("metroverify_token", login.access_token);
+      } catch (e) {
+        console.error("Auth bootstrap failed", e);
+      } finally {
+        setAuthReady(true);
+      }
+    };
+    bootstrapAuth();
+  }, []);
 
   const navigate = (tab: string) => {
     setActiveTab(tab);
@@ -55,6 +76,12 @@ const MainContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-black text-ivory">
+      {!authReady ? (
+        <main className="flex-1 flex items-center justify-center">
+          <div className="font-mono text-sm text-ash">Initializing secure session…</div>
+        </main>
+      ) : (
+        <>
       <Navbar activeTab={activeTab} setActiveTab={navigate} />
 
       <main className={`flex-1 ${activeTab === "home" ? "" : "max-w-[1400px] w-full mx-auto px-6 lg:px-12 py-12"}`}>
@@ -86,6 +113,8 @@ const MainContent: React.FC = () => {
             </div>
           </div>
         </footer>
+      )}
+        </>
       )}
     </div>
   );

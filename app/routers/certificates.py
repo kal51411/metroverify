@@ -6,18 +6,27 @@ from datetime import datetime
 from app.database import get_db
 from app.models.certificates import VerificationCertificate, CertificateStatusEnum
 from app.models.applications import Application
+from app.models.users import RoleEnum, User
 from app.schemas.certificates import CertificateOut
+from app.schemas.renewals import (
+    RenewalMetricsResponse,
+    RenewalQueueResponse,
+    RenewalReminderRequest,
+)
 from app.services.certificate_service import CertificateService
 from app.services.pdf_service import generate_certificate_pdf
 from app.services.qr_service import generate_qr_code
+from app.services.renewal_service import RenewalService
 from app.config import settings
+from app.security import get_current_user, require_roles
 
 router = APIRouter(prefix="/api/certificates", tags=["certificates"])
 
 @router.get("", response_model=List[CertificateOut])
 def list_certificates(
     status: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user)
 ):
     q = db.query(VerificationCertificate).options(
         joinedload(VerificationCertificate.instrument)
@@ -38,13 +47,13 @@ def get_certificate(certificate_id: int, db: Session = Depends(get_db)):
 @router.post("/application/{application_id}/generate")
 def generate_certificate(
     application_id: int,
-    officer_id: int = 2,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))
 ):
     cert = CertificateService.generate_certificate_for_application(
         db=db,
         application_id=application_id,
-        officer_user_id=officer_id
+        officer_user_id=current_user.id
     )
     return {
         "certificate_id": cert.id,
@@ -55,7 +64,11 @@ def generate_certificate(
     }
 
 @router.get("/{certificate_id}/qr")
-def get_certificate_qr(certificate_id: int, db: Session = Depends(get_db)):
+def get_certificate_qr(
+    certificate_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user)
+):
     cert = db.query(VerificationCertificate).filter(VerificationCertificate.id == certificate_id).first()
     if not cert:
         raise HTTPException(status_code=404, detail="Certificate not found")
@@ -70,7 +83,11 @@ def get_certificate_qr(certificate_id: int, db: Session = Depends(get_db)):
     }
 
 @router.get("/{certificate_id}/pdf")
-def download_certificate_pdf(certificate_id: int, db: Session = Depends(get_db)):
+def download_certificate_pdf(
+    certificate_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user)
+):
     cert = db.query(VerificationCertificate).options(
         joinedload(VerificationCertificate.instrument)
     ).filter(VerificationCertificate.id == certificate_id).first()
@@ -117,4 +134,60 @@ def download_certificate_pdf(certificate_id: int, db: Session = Depends(get_db))
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename={cert.certificate_number}.pdf"}
+    )
+
+
+@router.get("/renewals/queue", response_model=RenewalQueueResponse)
+def renewal_queue(
+    window_days: int = 90,
+    page: int = 1,
+    page_size: int = 20,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN)),
+):
+    return RenewalService.list_renewal_candidates(
+        db=db,
+        window_days=max(1, min(365, window_days)),
+        page=max(1, page),
+        page_size=max(1, min(100, page_size)),
+        search=search,
+    )
+
+
+@router.get("/renewals/metrics", response_model=RenewalMetricsResponse)
+def renewal_metrics(
+    window_days: int = 90,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN)),
+):
+    return RenewalService.renewal_metrics(db=db, window_days=max(1, min(365, window_days)))
+
+
+@router.post("/{certificate_id}/renewals")
+def one_click_renewal(
+    certificate_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN)),
+):
+    return RenewalService.create_prefilled_renewal_application(
+        db=db,
+        certificate_id=certificate_id,
+        actor=current_user,
+    )
+
+
+@router.post("/{certificate_id}/renewal-reminders")
+def trigger_renewal_reminder(
+    certificate_id: int,
+    payload: RenewalReminderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN)),
+):
+    return RenewalService.send_reminders(
+        db=db,
+        certificate_id=certificate_id,
+        channels=payload.channels,
+        actor=current_user,
+        note=payload.note,
     )

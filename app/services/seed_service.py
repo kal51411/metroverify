@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-import hashlib
 
 from app.models.users import User, RoleEnum
 from app.models.jurisdictions import Jurisdiction, Office
@@ -15,12 +14,13 @@ from app.models.rulesets import Ruleset, MPEBand, FeeRule, VerificationIntervalR
 from app.models.inspections import Inspection, TestMeasurement, SealRecord
 from app.models.certificates import VerificationCertificate, CertificateStatusEnum
 from app.services.audit_service import AuditService
+from app.security import hash_password
 from app.rules.base import DEFAULT_RULESET_VERSION
 from app.rules.fees import MAHARASHTRA_FEE_SCHEDULE_2018
 from app.rules.jurisdictions import MAHARASHTRA_JURISDICTIONS_DATA
 
 def hash_pw(pw: str) -> str:
-    return hashlib.sha256(pw.encode("utf-8")).hexdigest()
+    return hash_password(pw)
 
 def seed_database(db: Session, force: bool = False):
     """

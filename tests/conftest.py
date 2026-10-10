@@ -37,5 +37,8 @@ def client(db_session):
     fastapi_app.dependency_overrides[get_db] = override_get_db
     from fastapi.testclient import TestClient
     with TestClient(fastapi_app) as test_client:
+        login = test_client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
+        token = login.json()["access_token"]
+        test_client.headers.update({"Authorization": "Bearer " + token})
         yield test_client
     fastapi_app.dependency_overrides.clear()

@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -12,6 +12,8 @@ from app.routers import (
     diagnostics, audit
 )
 from app.services.seed_service import seed_database
+from app.security import require_roles
+from app.models.users import RoleEnum
 
 # Create tables if not existing
 Base.metadata.create_all(bind=engine)
@@ -45,15 +47,39 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include all modular routers
 app.include_router(auth.router)
-app.include_router(instruments.router)
-app.include_router(applications.router)
-app.include_router(inspections.router)
-app.include_router(standards.router)
-app.include_router(certificates.router)
+app.include_router(
+    instruments.router,
+    dependencies=[Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    applications.router,
+    dependencies=[Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    inspections.router,
+    dependencies=[Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    standards.router,
+    dependencies=[Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    certificates.router,
+    dependencies=[Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
 app.include_router(verify.router)
-app.include_router(rulesets.router)
-app.include_router(diagnostics.router)
-app.include_router(audit.router)
+app.include_router(
+    rulesets.router,
+    dependencies=[Depends(require_roles(RoleEnum.APPLICANT, RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    diagnostics.router,
+    dependencies=[Depends(require_roles(RoleEnum.INSPECTOR, RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
+app.include_router(
+    audit.router,
+    dependencies=[Depends(require_roles(RoleEnum.SUPERVISOR, RoleEnum.ADMIN))],
+)
 
 @app.get("/")
 def root():
