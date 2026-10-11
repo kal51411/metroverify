@@ -66,7 +66,7 @@ export function HeroV3({ onNavigate }: HeroV3Props) {
       >
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span className="font-mono text-[11px] sm:text-xs text-zinc-300 tracking-wider uppercase">
-          MetroVerify v3.0 · SIH Enterprise Prototype
+          Legal Metrology Act, 2009 · Statutory Verification Platform
         </span>
       </motion.div>
 

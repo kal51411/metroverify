@@ -42,7 +42,7 @@ export function NavbarV3({ activeTab, setActiveTab, onOpenGeoModal, currentUser,
               MetroVerify
             </span>
             <span className="font-mono text-[10px] text-cyan-400 tracking-wider uppercase block">
-              v3 Enterprise
+              Statutory Platform
             </span>
           </div>
         </button>
